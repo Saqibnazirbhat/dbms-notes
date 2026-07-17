@@ -33,4 +33,4 @@ section at the end of each chapter.
 
 ---
 
-MIT licensed. Typeface: [et-book](https://github.com/edwardtufte/et-book) (MIT).
+Made by **Saqib Nazir Bhat** &middot; MIT licensed &middot; typeface: [et-book](https://github.com/edwardtufte/et-book) (MIT).
