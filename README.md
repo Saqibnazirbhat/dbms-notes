@@ -7,9 +7,6 @@ runs it, crash a transaction, test keys on live data, and more.
 
 **📖 Read online:** https://Saqibnazirbhat.github.io/dbms-notes/
 
-**⬇ Study offline:** download [`index.html`](index.html) and open it in any
-browser. Everything works without internet.
-
 ## What's covered
 
 - **Week 1 · Course Overview** — what a database is, why file systems fail,
