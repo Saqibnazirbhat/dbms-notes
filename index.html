@@ -135,17 +135,6 @@ svg .mut{fill:var(--muted)}
 .cyu details .show-a::after{content:"Show answer \25B8"}
 .cyu details[open] .show-a::after{content:"Hide answer \25BE"}
 
-/* practice sets */
-.prq{margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
-.prq:first-of-type{margin-top:8px;padding-top:0;border-top:none}
-.pr-opts{display:flex;flex-direction:column;gap:6px;margin:10px 0;align-items:flex-start}
-.pr-opts .pill{text-align:left}
-.pr-ctl{display:flex;gap:10px;align-items:center;margin:8px 0 0}
-.numin{font-family:var(--mono);font-size:12.5px;padding:4px 8px;border:.8px solid var(--border);border-radius:4px;background:#fff;width:90px;color:var(--foreground)}
-.numin:focus{outline:none;border-color:var(--indigo)}
-.prq table.dt{margin:8px 0}
-.prq pre.sql{margin:10px 0;background:#fff}
-
 /* end of chapter */
 .endnav{margin-top:56px;border-top:1px solid var(--border);padding:24px 0;display:flex;justify-content:flex-end}
 .endnav .next{text-align:right}
@@ -230,55 +219,6 @@ function cyu(q, a){
     <p class="q">${q}</p>
     <details><summary><span class="show-a"></span></summary><p>${a}</p></details>
   </div>`;
-}
-function wx(body){
-  return `<div class="cyu"><div class="head">Worked example</div>${body}</div>`;
-}
-
-/* ---------- practice component: exam-style questions ----------
-   q types: 'num' (numeric input), 'mcq' (one option), 'multi' (several) */
-window.__PRACTICE = {};
-function practice(id, qs){
-  window.__PRACTICE[id] = qs;
-  return `<div class="cyu" id="${id}"><div class="head">Practice</div>` + qs.map((q,i)=>`
-    <div class="prq" data-i="${i}">
-      <div class="q">${i+1}. ${q.q}</div>
-      ${q.t==='num'
-        ? `<div class="pr-ctl"><input class="numin" inputmode="numeric" placeholder="number" aria-label="your answer"> <button class="btn pr-check">Check</button></div>`
-        : `<div class="pr-opts">${q.opts.map((o,j)=>`<button class="pill opt" data-j="${j}">${String.fromCharCode(65+j)}.&nbsp; ${o}</button>`).join('')}</div>
-           <div class="pr-ctl"><button class="btn pr-check">Check</button>${q.t==='multi'?'<span class="note">select all that apply</span>':''}</div>`}
-      <div class="msg pr-msg"></div>
-    </div>`).join('') + `</div>`;
-}
-function initPractice(id){
-  const qs = window.__PRACTICE[id], root = $('#'+id);
-  if(!qs || !root) return;
-  $$('.prq', root).forEach(el=>{
-    const q = qs[+el.dataset.i];
-    let sel = new Set();
-    $$('.opt', el).forEach(p=>p.onclick = ()=>{
-      const j = +p.dataset.j;
-      if(q.t==='mcq'){ sel = new Set([j]); $$('.opt', el).forEach(x=>x.classList.toggle('on', x===p)); }
-      else { sel.has(j) ? sel.delete(j) : sel.add(j); p.classList.toggle('on', sel.has(j)); }
-    });
-    $('.pr-check', el).onclick = ()=>{
-      const msg = $('.pr-msg', el);
-      let ok;
-      if(q.t==='num'){
-        const v = parseFloat($('.numin', el).value);
-        if(isNaN(v)){ msg.className='msg pr-msg'; msg.textContent='type a number first'; return; }
-        ok = v === q.a;
-      } else if(q.t==='mcq'){
-        if(!sel.size){ msg.className='msg pr-msg'; msg.textContent='pick an option first'; return; }
-        ok = sel.has(q.a);
-      } else {
-        if(!sel.size){ msg.className='msg pr-msg'; msg.textContent='pick one or more options first'; return; }
-        ok = q.a.length===sel.size && q.a.every(j=>sel.has(j));
-      }
-      msg.className = 'msg pr-msg ' + (ok ? 'good' : 'bad');
-      msg.innerHTML = (ok ? 'correct. ' : 'not yet. ') + q.why;
-    };
-  });
 }
 
 /* ---------- TOC page ---------- */
@@ -420,22 +360,6 @@ function renderWeek1(){
   duplicate. And for a tiny single-user task with no sharing and no complex questions, a plain
   file is still a perfectly sensible choice. The DBMS earns its complexity only when data is
   large, shared, and important.</p>
-
-  ${wx(`
-  <p class="q">Let's practice naming the problems, because that is how questions about this
-  section usually look. Read each little story, decide which named problem it is, then check
-  the reasoning.</p>
-  <p><i>Story 1: the fee office prints a letter with a student's old address, while the hostel
-  office has the new one.</i> Two copies of one fact exist and they disagree, so this is
-  <b>data inconsistency</b>. The deeper cause is <b>data redundancy</b>: the fact was stored
-  twice, so the copies were free to drift apart. One story, two named problems, cause and
-  symptom.</p>
-  <p><i>Story 2: the computer crashes while moving fee money between two accounts, after
-  subtracting from one but before adding to the other.</i> Half an operation happened. That is
-  an <b>atomicity problem</b>: there was no guarantee of all-or-nothing.</p>
-  <p><i>Story 3: a clerk who only needs student names can open the file and also see every
-  salary.</i> File permissions are all-or-nothing, so this is a <b>security problem</b>: no way
-  to grant half a file.</p>`)}
 
   ${cyu(
    `A student's address is stored in three files and two of them disagree. Which problem is the
@@ -656,46 +580,6 @@ function renderWeek1(){
     total directly is how the careless points are lost.</figcaption>
   </figure>
 
-  ${practice('pr-w1', [
-    {t:'mcq',
-     q:`Which option best describes the <b>durability</b> property of a DBMS?`,
-     opts:[`The system can efficiently adapt to a rapidly growing data set.`,
-           `Once work is committed, the data survives even if the system crashes abruptly.`,
-           `The business rules associated with the data are always kept intact.`,
-           `None of the above.`],
-     a:1,
-     why:`durability means committed work survives failures. Option A describes scalability and
-     option C describes integrity; questions love to swap these three labels, so match the word
-     to its one-line meaning.`},
-    {t:'num',
-     q:`How many of the following statements are true?<br>
-     1. A DBMS removes the need to store data in files on disk.<br>
-     2. Physical data independence means applications keep working when the storage structures change.<br>
-     3. In a file-based system, every program must enforce integrity rules itself.<br>
-     4. The data dictionary stores metadata such as table names, types, and constraints.`,
-     a:3,
-     why:`statements 2, 3 and 4 are true. Statement 1 is false: a DBMS still stores data in files
-     underneath; it manages them for you rather than making them disappear.`},
-    {t:'mcq',
-     q:`Which of these statements is a <b>DDL</b> statement?`,
-     opts:[`SELECT name FROM student;`,
-           `UPDATE student SET dept = 'CS';`,
-           `CREATE TABLE student (roll INT PRIMARY KEY);`,
-           `INSERT INTO student VALUES (1, 'Asha');`],
-     a:2,
-     why:`CREATE TABLE changes the structure of the database, which is the Data Definition
-     Language's job. SELECT, UPDATE and INSERT all work on the data inside the structure, so
-     they are DML.`},
-    {t:'mcq',
-     q:`Your query is slow, and the DBMS considers three different strategies before choosing the
-     cheapest one. Which component makes this choice?`,
-     opts:[`the DDL interpreter`, `the query optimizer`, `the buffer manager`, `the transaction manager`],
-     a:1,
-     why:`choosing among possible execution plans is exactly the optimizer's job. The DDL
-     interpreter records schema definitions, the buffer manager caches disk pages in memory, and
-     the transaction manager guards atomicity and recovery.`},
-  ])}
-
   <p>That is Week 1: the vocabulary and the map. Every later chapter builds on these words, and
   the ideas only get more concrete from here. Next, the relational model itself: what a table
   really is, and the beautiful little theory hiding inside it.</p>
@@ -833,8 +717,6 @@ function initWeek1(){
     };
     draw();
   })();
-
-  initPractice('pr-w1');
 }
 
 </script>
@@ -891,18 +773,6 @@ function renderWeek2(){
     <figcaption>Fig 2.1, Degree counts attributes and cardinality counts tuples. A relation is a
     set, so it silently refuses a duplicate tuple.</figcaption>
   </figure>
-
-  ${wx(`
-  <p class="q">A table is given and you are asked for its degree and cardinality. Take this one:</p>
-  <table class="dt"><tr><th>course_id</th><th>title</th><th>credits</th></tr>
-  <tr><td>CS-101</td><td>Databases</td><td>4</td></tr>
-  <tr><td>CS-102</td><td>Networks</td><td>3</td></tr>
-  <tr><td>MA-201</td><td>Statistics</td><td>4</td></tr>
-  <tr><td>HS-110</td><td>Economics</td><td>3</td></tr></table>
-  <p>Count the columns first: course_id, title, credits. Three columns, so the <b>degree is 3</b>.
-  Now count the rows of data (the header line is the schema, not a row): four courses, so the
-  <b>cardinality is 4</b>. If next week two courses are deleted, the degree is still 3 but the
-  cardinality drops to 2: the design didn't change, the data did.</p>`)}
 
   <h2>2. A Short Dictionary</h2>
   <p>Before SQL, a few precise definitions. Each is one line, each has a concrete picture, and
@@ -1186,25 +1056,6 @@ function renderWeek2(){
     &rarr; SELECT (&rarr; ORDER BY). Rows removed by WHERE never even reach their group.</figcaption>
   </figure>
 
-  ${wx(`
-  <p class="q">Questions about aggregation usually give you a small table, a query, and one blunt
-  ask: how many rows come back? Let's do one completely by hand, station by station.</p>
-  <table class="dt"><tr><th>ord_id</th><th>cust</th><th>amt</th></tr>
-  <tr><td>O1</td><td>A</td><td>25</td></tr><tr><td>O2</td><td>A</td><td>15</td></tr>
-  <tr><td>O3</td><td>B</td><td>30</td></tr><tr><td>O4</td><td>B</td><td>45</td></tr>
-  <tr><td>O5</td><td>C</td><td>10</td></tr></table>
-  <pre class="sql"><code><span class="kw">SELECT</span> cust, <span class="kw">SUM</span>(amt) <span class="kw">FROM</span> orders
-<span class="kw">WHERE</span> amt &gt; 20 <span class="kw">GROUP BY</span> cust <span class="kw">HAVING COUNT</span>(*) &gt;= 2;</code></pre>
-  <p><b>Station 1, WHERE amt &gt; 20:</b> go row by row. O1 (25) stays, O2 (15) goes, O3 (30)
-  stays, O4 (45) stays, O5 (10) goes. Three rows survive.</p>
-  <p><b>Station 2, GROUP BY cust:</b> the survivors form groups. A has one row (O1), B has two
-  (O3, O4). Customer C has no surviving rows, so C has no group at all: it vanished at WHERE.</p>
-  <p><b>Station 3, HAVING COUNT(*) &ge; 2:</b> group A has count 1, discarded. Group B has count
-  2, kept.</p>
-  <p><b>Station 4, SELECT:</b> each surviving group becomes one row. One group, so the query
-  returns <b>1 row</b>: (B, 75). The whole method is just careful bookkeeping: filter rows, form
-  groups, filter groups, count what's left.</p>`)}
-
   ${cyu(
    `On the table above with <code>qty &gt; 30</code> and <code>HAVING COUNT(*) &gt;= 2</code>,
     how many rows does the query return, and what happened to Stores?`,
@@ -1317,51 +1168,6 @@ function renderWeek2(){
   <div class="sym"><div class="s">A count is smaller than the data suggests</div>
   <div class="f">Either WHERE removed rows before grouping, or the aggregate is COUNT(col) and the
   column contains NULLs. COUNT(*) is the only count that sees every row.</div></div>
-  ${practice('pr-w2', [
-    {t:'num',
-     q:`Table orders(ord_id, cust, amt) holds seven rows:
-     (O1,A,25), (O2,A,15), (O3,B,30), (O4,B,45), (O5,C,10), (O6,C,18), (O7,D,50).
-     How many rows does this query return?
-     <pre class="sql"><code><span class="kw">SELECT</span> cust, <span class="kw">SUM</span>(amt) <span class="kw">FROM</span> orders
-<span class="kw">WHERE</span> amt &gt; 20 <span class="kw">GROUP BY</span> cust;</code></pre>`,
-     a:3,
-     why:`WHERE keeps O1, O3, O4 and O7. Those group into A, B and D. Customer C lost both rows
-     at WHERE and so has no group. Three groups, three output rows.`},
-    {t:'num',
-     q:`How many of these names match <code>name LIKE '_a%'</code>:
-     'Karan', 'Asha', 'Raj', 'Maya'?`,
-     a:3,
-     why:`the pattern says: any one character, then a, then anything. Karan (K-a...), Raj (R-a...)
-     and Maya (M-a...) match. Asha fails because its second character is s.`},
-    {t:'mcq',
-     q:`Some rows of <span class="rel">department</span> have no budget yet. Which query correctly
-     finds them?`,
-     opts:[`SELECT * FROM department WHERE budget = NULL;`,
-           `SELECT * FROM department WHERE budget = 'NULL';`,
-           `SELECT * FROM department WHERE budget IS NULL;`,
-           `SELECT * FROM department WHERE budget = 0;`],
-     a:2,
-     why:`comparing anything with NULL using = gives UNKNOWN, and WHERE drops UNKNOWN rows, so
-     option A returns nothing. NULL is not the text 'NULL' and not 0. IS NULL is the one correct
-     test for a missing value.`},
-    {t:'num',
-     q:`R has 4 rows and 3 columns; S has 5 rows and 2 columns. How many <b>rows</b> does
-     <code>SELECT * FROM R, S</code> return (no WHERE clause)?`,
-     a:20,
-     why:`with no condition this is a Cartesian product: every R row paired with every S row,
-     4 × 5 = 20 rows. (And it would be 3 + 2 = 5 columns: rows multiply, columns add.)`},
-    {t:'multi',
-     q:`Which of the following are true?`,
-     opts:[`UNION removes duplicate rows from its result.`,
-           `UNION ALL removes duplicate rows from its result.`,
-           `INTERSECT requires the two inputs to have the same number of columns.`,
-           `COUNT(*) skips rows that contain a NULL.`],
-     a:[0,2],
-     why:`the plain set operators de-duplicate, and ALL is precisely the way to switch that off,
-     so A is true and B is false. Set operations need union-compatible inputs, so C is true.
-     COUNT(*) counts rows unconditionally, NULLs included, so D is false.`},
-  ])}
-
   <p>That is the foundation: relations as sets of facts, keys to name them,
   SELECT&ndash;FROM&ndash;WHERE to ask about them, three-valued logic when facts are missing, and
   the pipeline when questions are about groups. Next, queries that contain other queries, and the
@@ -1709,8 +1515,6 @@ function initWeek2(){
     $('#prod-join').onclick = ()=>{ join=!join; update(); };
     update();
   })();
-
-  initPractice('pr-w2');
 }
 
 </script>
@@ -1869,18 +1673,6 @@ function renderWeek3(){
   other words, no requirement is unmet. That pattern is relational division written in SQL, and
   Week 4 gives the same idea its own operator.</p>
 
-  ${wx(`
-  <p class="q">Let's evaluate a correlated EXISTS completely by hand, because doing it once slowly
-  is what makes every later one fast. Customers: C1 Asha, C2 Ravi, C3 Meena. Orders: (O1, C1)
-  and (O3, C3). Query: keep customers WHERE EXISTS an order with O.cust_id = C.cust_id.</p>
-  <p><b>Outer row C1 (Asha):</b> run the inner query with cust_id = C1. It finds O1, one row.
-  EXISTS of a non-empty result is TRUE, so Asha is kept.</p>
-  <p><b>Outer row C2 (Ravi):</b> inner query with cust_id = C2 finds nothing. EXISTS of an empty
-  result is FALSE, so Ravi is dropped.</p>
-  <p><b>Outer row C3 (Meena):</b> inner query finds O3. TRUE, kept.</p>
-  <p>Result: Asha and Meena. Had the query said NOT EXISTS instead, every verdict simply flips,
-  and Ravi alone would survive: the customers with no orders. One pattern, both directions.</p>`)}
-
   ${cyu(
    `A correlated subquery references C.cust_id from the outer query. How many times is it
     conceptually evaluated?`,
@@ -1959,19 +1751,6 @@ function renderWeek3(){
     NATURAL JOIN returns just the matches, because it automatically equates all same-named columns
     and keeps one copy. INNER JOIN ... ON does the same but with the condition written out where
     you can see it, which is why it is the safer habit.`)}
-
-  ${wx(`
-  <p class="q">The most tempting wrong answer in this whole subject is a join row count. Say
-  enrolled has 100 rows, course has 6, and teacher has 5, and the query joins all three:</p>
-  <pre class="sql"><code><span class="kw">SELECT</span> * <span class="kw">FROM</span> enrolled e, course c, teacher t
-<span class="kw">WHERE</span> e.c_id = c.c_id <span class="kw">AND</span> c.t_id = t.t_id;</code></pre>
-  <p>The bait is 100 × 6 × 5 = 3000, which would be right only with no WHERE at all. But look at
-  what each condition does. Every enrolled row has one c_id, and that c_id matches exactly one of
-  the 6 courses, so the first join gives each enrolled row exactly one partner: still 100 rows,
-  now wider. Each course has one t_id matching exactly one teacher, so the second join again
-  keeps one partner per row: still 100.</p>
-  <p>The rule to carry away: <b>a chain of foreign-key equality joins keeps the row count of the
-  many-side table</b>. Multiplication only happens where a condition is missing.</p>`)}
 
   <h2>6. Views: Named Queries</h2>
   <p>Some queries deserve names. The registrar keeps writing the same three-table join to see
@@ -2123,54 +1902,6 @@ function renderWeek3(){
   <div class="sym"><div class="s">A delete fails with a foreign-key error</div>
   <div class="f">Child rows still reference the parent and the action is RESTRICT. Delete the
   children first, or declare CASCADE or SET NULL if the schema should handle it.</div></div>
-  ${practice('pr-w3', [
-    {t:'multi',
-     q:`Which of the following equivalences hold?`,
-     opts:[`x = SOME (subquery) is equivalent to x IN (subquery)`,
-           `x &lt;&gt; SOME (subquery) is equivalent to x NOT IN (subquery)`,
-           `x &lt;&gt; ALL (subquery) is equivalent to x NOT IN (subquery)`,
-           `x = (subquery) quietly evaluates to FALSE when the subquery returns three rows`],
-     a:[0,2],
-     why:`= SOME means "equals at least one member", which is membership, so A holds. NOT IN means
-     "different from all members", which is &lt;&gt; ALL, so C holds and B fails: differing from
-     just one member is nearly always true. D fails because plain = with a multi-row subquery is
-     an error, not FALSE.`},
-    {t:'num',
-     q:`student has 5 rows. Three students have a dept_id that exists in dept, one has a dept_id
-     that matches nothing, and one has dept_id NULL. dept_id values in dept are unique. How many
-     rows does <code>student LEFT JOIN dept ON student.dept_id = dept.dept_id</code> return?`,
-     a:5,
-     why:`a LEFT JOIN never loses a left row. The three matching students each find exactly one
-     partner (dept_id is unique in dept), and the two unmatched students survive with NULLs
-     filling the dept columns. 3 + 2 = 5 rows.`},
-    {t:'mcq',
-     q:`orders.cust_id sometimes contains NULL. Which query safely finds the customers with
-     <b>no</b> orders?`,
-     opts:[`... WHERE C.cust_id NOT IN (SELECT cust_id FROM orders);`,
-           `... WHERE NOT EXISTS (SELECT 1 FROM orders O WHERE O.cust_id = C.cust_id);`,
-           `... WHERE C.cust_id &lt;&gt; ALL (SELECT cust_id FROM orders);`,
-           `... WHERE C.cust_id = NULL;`],
-     a:1,
-     why:`NOT IN and &lt;&gt; ALL both break when the subquery contains a NULL: every comparison
-     becomes UNKNOWN and the result goes empty. Option D is never a valid test. The correlated
-     NOT EXISTS asks "does this customer have any order?" row by row, and NULLs cannot poison it.`},
-    {t:'mcq',
-     q:`A department row is deleted, the delete succeeds, and the instructors who referenced it
-     now have NULL in their dept column. Which referential action was declared?`,
-     opts:[`ON DELETE RESTRICT`, `ON DELETE CASCADE`, `ON DELETE SET NULL`, `ON DELETE SET DEFAULT`],
-     a:2,
-     why:`RESTRICT would have rejected the delete, CASCADE would have deleted the instructors too,
-     and SET DEFAULT would have written a declared default value, not NULL. Children surviving
-     with a blanked foreign key is the signature of SET NULL.`},
-    {t:'num',
-     q:`A = 500 and B = 200. A transaction runs: debit A by 100, credit B by 100, and the system
-     crashes <b>before</b> COMMIT. After recovery, what is the balance of A?`,
-     a:500,
-     why:`uncommitted work is rolled back during recovery, so the debit never officially happened.
-     That is atomicity. Only after COMMIT would the new balances (400 and 300) be guaranteed to
-     survive, which is durability.`},
-  ])}
-
   <p>That completes SQL as a working language: nested questions, joins that tolerate missing
   partners, transactions that keep their promises, and constraints that defend themselves. What
   remains is the theory underneath it all and the art of designing a schema in the first place.
@@ -2473,8 +2204,6 @@ function initWeek3(){
     $$('#fig-ref .pill').forEach(p=>p.onclick=()=>{ policy=p.dataset.r; if(!deleted){msg.textContent='pick a policy, then try the delete';} draw(); });
     reset();
   })();
-
-  initPractice('pr-w3');
 }
 
 </script>
@@ -2680,20 +2409,6 @@ function renderWeek4(){
 <span class="dim">-- the same query in algebra, read inside out</span>
 &pi;<span class="dim">name</span>( &sigma;<span class="dim">salary&gt;70000</span>( instructor ) )</code></pre>
 
-  ${wx(`
-  <p class="q">Let's watch difference smuggle in its negation, on real values. R holds the ids
-  {3, 6, 8, 10, 12, 15}, and the expression is
-  <span class="rel">&sigma;<sub>id&gt;5</sub>(R) &minus; &sigma;<sub>id&gt;10</sub>(R)</span>.</p>
-  <p><b>First piece:</b> &sigma; id &gt; 5 keeps {6, 8, 10, 12, 15}.</p>
-  <p><b>Second piece:</b> &sigma; id &gt; 10 keeps {12, 15}.</p>
-  <p><b>The difference:</b> remove the second set from the first, leaving {6, 8, 10}. Three
-  tuples.</p>
-  <p>Now describe the survivors in one condition: they all satisfy id &gt; 5 AND NOT (id &gt; 10),
-  which simplifies to 5 &lt; id &le; 10. Check the boundary before moving on: 10 is in the
-  answer, because it passes the first test and fails the subtracted one. Whenever subtraction
-  appears, the survivors are &ldquo;first condition AND NOT second&rdquo;, and the boundary value
-  is where careless answers die.</p>`)}
-
   <h2>5. Tuple Relational Calculus</h2>
   <p>There is a third way to write queries, and it drops the recipe entirely. <b>Tuple relational
   calculus</b> (TRC) describes a result the way mathematics describes a set:
@@ -2862,22 +2577,6 @@ function renderWeek4(){
   below and read the schema each one produces; between them, these rules translate any diagram
   this course will show you.</p>
 
-  ${wx(`
-  <p class="q">A design in words: students have a roll number (key), a name, and possibly several
-  phone numbers. Students take courses (M:N), and each taking has a grade. Turn it into tables,
-  one rule at a time.</p>
-  <p><b>Rule for the strong entity:</b> student becomes its own relation with its key:
-  <code>student(roll, name)</code>.</p>
-  <p><b>Rule for the multivalued attribute:</b> several phones cannot fit one column, so phone
-  gets a relation of its own, keyed by both columns together:
-  <code>student_phone(roll, phone)</code>, with roll also a foreign key back to student.</p>
-  <p><b>Rule for the M:N relationship:</b> neither side can hold the other's key, so takes
-  becomes a relation carrying both keys, and the grade attribute lives here, because a grade
-  describes one (student, course) pair: <code>takes(roll, course_id, grade)</code>, primary key
-  (roll, course_id).</p>
-  <p>Three sentences of design, three relations, and every rule was mechanical. That is the whole
-  point of the mapping procedure.</p>`)}
-
   <figure>
     <div class="fig-card" id="fig-map">
       <div class="controls" style="margin:0 0 12px">
@@ -2919,56 +2618,6 @@ function renderWeek4(){
   <div class="sym"><div class="s">Relationship attributes parked on an entity</div>
   <div class="f">If the relationship is M:N, its attributes describe a pair and must live on the
   relationship relation. In a 1:N they may ride along to the many side.</div></div>
-  ${practice('pr-w4', [
-    {t:'num',
-     q:`X(id) holds {1, 2, 3, 4} and Y(id) holds {3, 4, 5}. How many tuples does
-     <span class="rel">&pi;<sub>X.id</sub>(&sigma;<sub>X.id = Y.id</sub>(X &times; Y))</span> return?`,
-     a:2,
-     why:`the product has 4 × 3 = 12 pairs; the selection keeps the agreeing pairs (3,3) and
-     (4,4); the projection keeps their X.id values, {3, 4}. Two tuples. Always evaluate inside
-     out, counting at each stage.`},
-    {t:'mcq',
-     q:`R1(id) holds {2, 4, 6, 8} and R2(id) holds {4, 8, 10}. A mystery operation returns
-     {2, 6}. Which operation was it?`,
-     opts:[`R1 &cup; R2`, `R1 &cap; R2`, `R1 &minus; R2`, `R2 &minus; R1`],
-     a:2,
-     why:`{2, 6} is what remains of R1 after striking out the values it shares with R2 (4 and 8),
-     which is R1 &minus; R2. Direction matters: R2 &minus; R1 would give {10}.`},
-    {t:'num',
-     q:`takes(student, course) holds: Asha with {DB, ML, AI}, Ravi with {DB, AI}, and Divya with
-     {ML, AI}. required(course) holds {DB, AI}. How many students are in
-     takes &divide; required?`,
-     a:2,
-     why:`the test is universal: who has every required course? Asha has DB and AI, Ravi has DB
-     and AI, but Divya is missing DB. Asha and Ravi survive: 2 students.`},
-    {t:'multi',
-     q:`Which of the following are true about tuple relational calculus?`,
-     opts:[`{ t | t &isin; R &and; t.id &gt; 5 } is equivalent to { t | t &isin; R &and; &not;(t.id &le; 5) }`,
-           `The result variable of a query should be bound by &exist; or &forall;`,
-           `{ t | &not;(t &isin; R) } is a safe expression`,
-           `Relational algebra and safe TRC can express the same queries`],
-     a:[0,3],
-     why:`A holds because the two conditions are logically identical. B is backwards: the result
-     variable must stay free, only the other variables get bound. C is unsafe, describing an
-     infinite set of tuples outside R. D is relational completeness, a true and famous fact.`},
-    {t:'mcq',
-     q:`takes is a many-to-many relationship between student and course, and it has an attribute
-     grade. When the diagram becomes tables, where must grade be stored?`,
-     opts:[`in the student relation`, `in the course relation`,
-           `in the takes relation built for the relationship`, `in any of them, it makes no difference`],
-     a:2,
-     why:`a grade describes one (student, course) pair, and the only table whose rows are exactly
-     those pairs is the takes relation. On student it would collide across that student's many
-     courses; on course, across its many students.`},
-    {t:'mcq',
-     q:`In an ER diagram, an attribute drawn as a <b>dashed oval</b> is:`,
-     opts:[`a key attribute`, `a multivalued attribute`, `a derived attribute`, `a composite attribute`],
-     a:2,
-     why:`dashed means derived: computable from other attributes, like age from the date of
-     birth. Key is underlined, multivalued is a double oval, and composite branches into
-     sub-ovals.`},
-  ])}
-
   <p>And that closes the loop of the four weeks. Week 1 explained why databases exist, Week 2
   built the relational model and basic SQL, Week 3 made SQL powerful enough for real systems, and
   this week supplied the theory underneath and the design method on top. The algebra and the
@@ -3343,8 +2992,6 @@ function initWeek4(){
     $$('#fig-map .pill').forEach(p=>p.onclick=()=>show(p.dataset.m));
     show('strong');
   })();
-
-  initPractice('pr-w4');
 }
 
 </script>
