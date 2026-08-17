@@ -133,6 +133,11 @@ svg.d{display:block;margin:0 auto;max-width:100%;height:auto}
 svg.d text{font-family:var(--serif);font-size:11px;fill:var(--foreground)}
 svg.d text.m{font-family:var(--mono);font-size:10px}
 svg.d text.mu{fill:var(--muted)}
+/* Colour is the only thing that eases, matching the reference. Geometry and
+   transform are never transitioned, so per-frame animation stays exact. */
+svg.d rect,svg.d circle,svg.d ellipse,svg.d path,svg.d line,svg.d polygon,svg.d text{
+  transition:fill .18s ease,stroke .18s ease,stroke-width .18s ease,opacity .18s ease}
+svg.d .nt,svg.d .nt *{transition:none}
 
 /* data tables */
 table.dt{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;
@@ -349,6 +354,138 @@ const DG = {
     return Array.from({ length: n }, (_, i) => from + i * (w + gap));
   },
 };
+
+/* ------------------------------------------------------------------ *
+ * Animation. Three rules, taken from the reference:
+ *   1. nothing animates off-screen
+ *   2. nothing animates under prefers-reduced-motion
+ *   3. every animated figure stays fully usable while paused
+ * Motion comes from redrawing on new state, never from CSS transforms.
+ * ------------------------------------------------------------------ */
+const lerp = (a, b, t) => a + (b - a) * t;
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+const ANIM = {
+  live: [],
+  reduced: window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false,
+  /* called by the router before it replaces the page */
+  clear() {
+    this.live.forEach(h => { try { h.stop(); } catch (e) { /* already gone */ } });
+    this.live = [];
+  },
+  track(h) { this.live.push(h); return h; },
+  /* Advance every live loop by dt seconds without a real frame. The animation
+     logic is therefore driveable, and testable, independently of rAF. */
+  tickAll(dt, times) {
+    for (let i = 0; i < (times || 1); i++) {
+      this.live.forEach(h => { if (h.tick) h.tick(dt === undefined ? 1 / 60 : dt); });
+    }
+    return this.live.length;
+  },
+};
+if (window.matchMedia) {
+  window.matchMedia('(prefers-reduced-motion: reduce)')
+    .addEventListener('change', e => { ANIM.reduced = e.matches; });
+}
+
+/* Run cb(dt, elapsed) on every frame while el is on screen.
+   dt is seconds, clamped so a backgrounded tab cannot jump the clock. */
+function raf(el, cb) {
+  let id = 0, prev = 0, t = 0, vis = false, dead = false;
+  const frame = now => {
+    const dt = prev ? Math.min((now - prev) / 1000, 0.05) : 0;
+    prev = now; t += dt;
+    cb(dt, t);
+    id = requestAnimationFrame(frame);
+  };
+  const start = () => {
+    if (id || dead || ANIM.reduced) return;
+    prev = 0; id = requestAnimationFrame(frame);
+  };
+  const stopLoop = () => { if (id) cancelAnimationFrame(id); id = 0; };
+  let obs = null;
+  if (window.IntersectionObserver && el) {
+    obs = new IntersectionObserver(([e]) => {
+      vis = e.isIntersecting;
+      vis ? start() : stopLoop();
+    }, { rootMargin: '120px' });
+    obs.observe(el);
+  } else { vis = true; start(); }
+  const h = {
+    stop() { dead = true; stopLoop(); if (obs) obs.disconnect(); },
+    get running() { return !!id; },
+    resume() { if (vis) start(); },
+    pause() { stopLoop(); },
+    reset() { t = 0; },
+    /* One frame, on demand: used by the test harness, where rAF never fires.
+       Honours reduced motion so the harness measures real behaviour. */
+    tick(d) { if (dead || ANIM.reduced) return; t += d; cb(d, t); },
+  };
+  return ANIM.track(h);
+}
+
+/* Call cb() every ms while el is on screen. For stepping through discrete
+   stages. Returns a handle whose .toggle() drives a Play / Pause button. */
+function ticker(el, cb, ms) {
+  let id = 0, want = false, vis = false, dead = false;
+  const run = () => {
+    if (id || dead || !want || !vis || ANIM.reduced) return;
+    id = setInterval(cb, ms);
+  };
+  const halt = () => { if (id) clearInterval(id); id = 0; };
+  let obs = null;
+  if (window.IntersectionObserver && el) {
+    obs = new IntersectionObserver(([e]) => {
+      vis = e.isIntersecting; vis ? run() : halt();
+    }, { rootMargin: '120px' });
+    obs.observe(el);
+  } else { vis = true; }
+  const h = {
+    play() { want = true; run(); },
+    pause() { want = false; halt(); },
+    toggle() { want ? h.pause() : h.play(); return want; },
+    get playing() { return want; },
+    stop() { dead = true; want = false; halt(); if (obs) obs.disconnect(); },
+    /* one beat, on demand, only while the caller has asked to play */
+    tick() { if (!dead && want) cb(); },
+  };
+  return ANIM.track(h);
+}
+
+/* A Play / Pause / Step / Reset control strip, wired to a ticker.
+   `render(i)` draws stage i; `n` is the number of stages. */
+function player(figId, n, render, opts) {
+  opts = opts || {};
+  const fig = $('#' + figId);
+  const btn = $('#' + figId + '-play', fig);
+  let i = opts.start || 0;
+  const draw = () => render(i);
+  const tk = ticker(fig, () => {
+    i = i + 1;
+    if (i >= n) { if (opts.loop) { i = 0; } else { i = n - 1; tk.pause(); label(); } }
+    draw();
+  }, opts.ms || 900);
+  function label() {
+    if (btn) btn.textContent = tk.playing ? (opts.pauseText || 'Pause')
+      : (opts.playText || 'Play');
+  }
+  if (btn) btn.onclick = () => {
+    if (!tk.playing && i >= n - 1) i = 0;
+    tk.toggle(); label(); draw();
+  };
+  const api = {
+    get i() { return i; },
+    set(v) { i = clamp(v, 0, n - 1); tk.pause(); label(); draw(); },
+    step(d) { api.set(i + (d === undefined ? 1 : d)); },
+    reset() { api.set(0); },
+    draw,
+    label,
+    get playing() { return tk.playing; },
+  };
+  draw(); label();
+  return api;
+}
 </script>
 
 <script>
@@ -515,7 +652,8 @@ ${fig('f-atom',
 </div>`,
 'Fig 1.1, The same transfer, twice. Run it to the end and both look identical. Crash it at the critical point and they part company.',
 `<span class="lab">version:</span>${pills('atom', [['file', 'file'], ['db', 'database']], 0)}
- <button class="btn" id="atom-step">Step</button><button class="btn" id="atom-crash">Crash here</button>
+ <button class="btn" id="atom-play">Run it</button><button class="btn" id="atom-step">Step</button>
+ <button class="btn" id="atom-crash">Cut the power now</button>
  <button class="btn" id="atom-reset">Reset</button>`,
 'run it to the end and both versions agree')}
 <p>And it is worth being fair about how the database does it: <b>there is no magic</b>. A DBMS is
@@ -892,8 +1030,8 @@ ${fig('f-eng',
   <div class="msg" id="eng-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 1.7, One query, from typed text to returned rows.',
-`<button class="btn" id="eng-step">Step</button><button class="btn" id="eng-back">Back</button>
- <button class="btn" id="eng-reset">Reset</button>`,
+`<button class="btn" id="eng-play">Send a query</button><button class="btn" id="eng-step">Step</button>
+ <button class="btn" id="eng-back">Back</button><button class="btn" id="eng-reset">Reset</button>`,
 'the optimizer is why you never have to say how to find the data')}
 <p>The <b>optimizer</b> is the interesting stage. One query can be written as several different
 relational algebra expressions, and each of those can be evaluated in several different orders. Each
@@ -1004,9 +1142,11 @@ function initWeek1() {
         (tot === 8000 ? '' : ', 500 destroyed');
       $('#atom-code').innerHTML = STEPS.map((s, i) => {
         const ran = i < done, isCrash = crashed === i;
-        return `<div style="padding:1px 5px;${ran ? 'background:var(--indigo-tint)' : ''}` +
+        const next = crashed < 0 && i === done && done < 6;   /* about to run */
+        return `<div style="padding:1px 5px;transition:background .18s ease;` +
+          `${ran ? 'background:var(--indigo-tint)' : next ? 'background:var(--card)' : ''}` +
           `${isCrash ? 'color:var(--terra)' : ''}">${i + 1}. ${s[0]}` +
-          (isCrash ? '   &larr; crash' : '') + '</div>' +
+          (isCrash ? '   &larr; power lost here' : next ? '   &larr; next' : '') + '</div>' +
           (i === 2 ? '<div style="padding:1px 5px;color:var(--terra)">&nbsp; &larr; critical point</div>' : '');
       }).join('');
       $('#atom-mode-l').textContent = mode === 'file'
@@ -1029,11 +1169,27 @@ function initWeek1() {
       $('#atom-step').disabled = step >= 6 || crashed >= 0;
       $('#atom-crash').disabled = step >= 6 || crashed >= 0 || step === 0;
     }
-    setPills($('#f-atom'), 'atom', v => { mode = v; draw(); });
-    $('#atom-step').onclick = () => { if (step < 6) step++; draw(); };
-    $('#atom-crash').onclick = () => { crashed = step; draw(); };
-    $('#atom-reset').onclick = () => { step = 0; crashed = -1; draw(); };
+    /* Letting it run is the point: the power has to be cut while the transfer
+       is actually in flight, which a stepped table never quite conveys. */
+    const tk = ticker($('#f-atom'), () => {
+      if (step < 6) step++;
+      if (step >= 6) tk.pause();
+      draw(); label();
+    }, 750);
+    function label() {
+      $('#atom-play').textContent = tk.playing ? 'Pause' : (step >= 6 || crashed >= 0 ? 'Run again' : 'Run it');
+      $('#atom-crash').disabled = crashed >= 0 || step === 0 || step >= 6;
+    }
+    $('#atom-play').onclick = () => {
+      if (!tk.playing && (step >= 6 || crashed >= 0)) { step = 0; crashed = -1; }
+      tk.toggle(); label(); draw();
+    };
+    setPills($('#f-atom'), 'atom', v => { mode = v; draw(); label(); });
+    $('#atom-step').onclick = () => { tk.pause(); if (step < 6) step++; draw(); label(); };
+    $('#atom-crash').onclick = () => { tk.pause(); crashed = step; draw(); label(); };
+    $('#atom-reset').onclick = () => { tk.pause(); step = 0; crashed = -1; draw(); label(); };
     draw();
+    label();
   })();
 
   /* ---- Fig 1.2 ACID ---- */
@@ -1220,20 +1376,29 @@ function initWeek1() {
       ['result returned', 'rows on your screen',
         'You get a table back. You never said how to find it, and if the storage layout changes tomorrow you still will not have to.'],
     ];
-    let k = 0;
+    const BW = 78, GAP = 10;
+    const bx = i => DG.PAD + i * (BW + GAP);        /* left edge of box i */
+    const mid = i => bx(i) + BW / 2;
+    let k = 0, markX = mid(0);
+
     function draw() {
-      const w = 78, gap = 10;
-      let x = DG.PAD, s = '';
+      let s = '';
       P.forEach((p, i) => {
         const on = i === k, done = i < k;
-        s += DG.box(x, 40, w, 34, String(i + 1), null, {
+        s += DG.box(bx(i), 40, BW, 34, String(i + 1), null, {
           fill: on ? 'var(--indigo-tint)' : done ? 'var(--card)' : '#fff',
           stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
         });
-        if (i < P.length - 1) s += DG.arrow(x + w + 1, 57, x + w + gap - 1, 57, { stroke: '#c9c9c4' });
-        x += w + gap;
+        if (i < P.length - 1) {
+          s += DG.arrow(bx(i) + BW + 1, 57, bx(i) + BW + GAP - 1, 57, { stroke: '#c9c9c4' });
+        }
       });
-      s += DG.txt(DG.PAD, 26, P[k][0], { cls: 'm', fill: 'var(--indigo)' });
+      /* the query itself, travelling. On the last stage it is the answer
+         coming back, so it runs the other way. */
+      s += `<circle id="eng-mark" cx="${markX.toFixed(1)}" cy="30" r="4.5" ` +
+        `fill="${k >= P.length - 1 ? 'var(--green)' : 'var(--indigo)'}"/>`;
+      s += `<text id="eng-marklb" class="m mu" x="${markX.toFixed(1)}" y="20" text-anchor="middle">` +
+        (k >= P.length - 1 ? 'rows' : 'query') + '</text>';
       s += DG.txt(DG.PAD, 94, P[k][1], { cls: 'm mu' });
       s += DG.txt(DG.PAD, 112, 'statistics about the data and about recent queries feed stages 3 and 4',
         { cls: 'm mu' });
@@ -1244,10 +1409,37 @@ function initWeek1() {
       $('#eng-step').disabled = k >= P.length - 1;
       $('#eng-back').disabled = k <= 0;
     }
-    $('#eng-step').onclick = () => { if (k < P.length - 1) k++; draw(); };
-    $('#eng-back').onclick = () => { if (k > 0) k--; draw(); };
-    $('#eng-reset').onclick = () => { k = 0; draw(); };
+
+    /* Only the marker moves per frame, so the drawing is not rebuilt 60 times
+       a second. Target is the current stage, or back to the start once the
+       answer is on its way out. */
+    raf($('#f-eng'), dt => {
+      const want = k >= P.length - 1 ? mid(0) : mid(k);
+      if (Math.abs(markX - want) < 0.3) { markX = want; return; }
+      markX = lerp(markX, want, Math.min(1, dt * 4));
+      const c = $('#eng-mark'), l = $('#eng-marklb');
+      if (c) c.setAttribute('cx', markX.toFixed(1));
+      if (l) l.setAttribute('x', markX.toFixed(1));
+    });
+
+    const tk = ticker($('#f-eng'), () => {
+      k++;
+      if (k >= P.length - 1) { k = P.length - 1; tk.pause(); }
+      draw(); label();
+    }, 1100);
+    function label() {
+      $('#eng-play').textContent = tk.playing ? 'Pause'
+        : k >= P.length - 1 ? 'Send another' : 'Send a query';
+    }
+    $('#eng-play').onclick = () => {
+      if (!tk.playing && k >= P.length - 1) { k = 0; markX = mid(0); }
+      tk.toggle(); label(); draw();
+    };
+    $('#eng-step').onclick = () => { tk.pause(); if (k < P.length - 1) k++; draw(); label(); };
+    $('#eng-back').onclick = () => { tk.pause(); if (k > 0) k--; draw(); label(); };
+    $('#eng-reset').onclick = () => { tk.pause(); k = 0; markX = mid(0); draw(); label(); };
     draw();
+    label();
   })();
 
   /* ---- Fig 1.8 relation as a subset ---- */
@@ -3451,27 +3643,70 @@ function initWeek3() {
     const ROW1 = [['classroom', 6, 92], ['department', 108, 100], ['course', 218, 78],
       ['instructor', 306, 92], ['student', 408, 84]];
     const ROW2 = [['section', 150, 84], ['teaches', 250, 84], ['takes', 350, 76]];
-    function draw(k) {
+    /* which tables each link joins, and on what */
+    const LINKS = [
+      ['course', 'section', 'course_id', 257, 60, 192, 96],
+      ['instructor', 'teaches', 'ID', 352, 60, 292, 96],
+      ['student', 'takes', 'ID', 450, 60, 388, 96],
+      ['classroom', 'section', 'building, room_number', 56, 60, 150, 96],
+      ['section', 'teaches', 'course_id, sec_id, semester, year', 234, 111, 250, 111],
+      ['section', 'takes', 'course_id, sec_id, semester, year', 234, 111, 350, 111],
+      ['department', 'course', 'dept_name', 158, 60, 240, 60],
+      ['department', 'instructor', 'dept_name', 178, 55, 330, 55],
+      ['department', 'student', 'dept_name', 198, 50, 430, 50],
+    ];
+    let picked = null, hovered = null;
+
+    function draw() {
+      const k = hovered || picked;
+      const touches = id => k && (id === k || LINKS.some(l =>
+        (l[0] === k && l[1] === id) || (l[1] === k && l[0] === id)));
       let s = '';
-      [[257, 60, 192, 96], [352, 60, 292, 96], [450, 60, 388, 96], [56, 60, 150, 96]]
-        .forEach(([x1, y1, x2, y2]) => { s += DG.line(x1, y1, x2, y2, { stroke: '#e0e0dd' }); });
+      LINKS.forEach(([a, b, on, x1, y1, x2, y2]) => {
+        const lit = k && (a === k || b === k);
+        s += DG.line(x1, y1, x2, y2,
+          { stroke: lit ? 'var(--indigo)' : '#e0e0dd', sw: lit ? 1.6 : 1 });
+      });
       ROW1.concat(ROW2).forEach(([id, x, w], i) => {
-        const on = id === k;
+        const self = id === k, near = touches(id) && !self;
         s += DG.box(x, i < ROW1.length ? 30 : 96, w, 30, id, null, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
+          fill: self ? 'var(--indigo-tint)' : near ? 'var(--card)' : '#fff',
+          stroke: self ? 'var(--indigo)' : near ? '#8f8f89' : '#e5e5e3', r: 4, cls: 'm',
         });
       });
       s += DG.txt(DG.PAD, 20, 'the things that exist', { cls: 'm mu' });
       s += DG.txt(DG.PAD, 142, 'the tables that connect them', { cls: 'm mu' });
-      s += DG.txt(DG.PAD, 164, 'every example in this chapter runs against these eight tables',
-        { cls: 'm mu' });
+      s += DG.txt(DG.PAD, 164, k
+        ? 'lit: everything ' + k + ' can reach in one join'
+        : 'every example in this chapter runs against these eight tables', { cls: 'm mu' });
       $('#un-svg').innerHTML = s;
-      $('#un-note').innerHTML = k ? '<b>' + T[k][0] + '</b><br>' + T[k][1]
-        : 'Pick a table to see its columns. The top row holds the entities; the bottom row holds the tables that link them together.';
+
+      /* transparent hit areas on top, so hovering a box lights its joins */
+      const hit = ROW1.map(([id, x, w]) => [id, x, 30, w])
+        .concat(ROW2.map(([id, x, w]) => [id, x, 96, w]));
+      $('#un-svg').innerHTML += hit.map(([id, x, y, w]) =>
+        `<rect class="uhit" data-t="${id}" x="${x}" y="${y}" width="${w}" height="30" ` +
+        `fill="transparent" style="cursor:pointer"/>`).join('');
+      $$('#un-svg .uhit').forEach(r => {
+        r.onmouseenter = () => { hovered = r.dataset.t; draw(); };
+        r.onmouseleave = () => { hovered = null; draw(); };
+        r.onclick = () => { picked = picked === r.dataset.t ? null : r.dataset.t; hovered = null; draw(); };
+      });
+
+      if (k) {
+        const joins = LINKS.filter(l => l[0] === k || l[1] === k)
+          .map(l => '<b>' + (l[0] === k ? l[1] : l[0]) + '</b> on <code>' + l[2] + '</code>');
+        $('#un-note').innerHTML = '<b>' + T[k][0] + '</b><br>' + T[k][1] +
+          '<br><span style="color:var(--muted)">joins directly to:</span> ' +
+          (joins.length ? joins.join(', ') : 'nothing directly');
+      } else {
+        $('#un-note').innerHTML = 'Hover or pick a table to see its columns and every table it ' +
+          'joins to in one step. The top row holds the entities; the bottom row holds the tables ' +
+          'that link them together.';
+      }
     }
-    setPills($('#f-uni'), 'un', draw);
-    draw(null);
+    setPills($('#f-uni'), 'un', k => { picked = k; hovered = null; draw(); });
+    draw();
   })();
 
   /* ---- Fig 3.2 DISTINCT ---- */
@@ -5344,7 +5579,10 @@ ${fig('f-loss',
   <div class="msg" id="ls-note" style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px"></div>
 </div>`,
 'Fig 5.6, The same table split two ways. One rejoins perfectly; the other invents rows that were never in the original.',
-`<span class="lab">split on:</span>${pills('ls', [['good', 'shared: course_id'], ['bad', 'shared: room']], 0)}`,
+`<span class="lab">split on:</span>${pills('ls', [['good', 'shared: course_id'], ['bad', 'shared: room']], 0)}
+ <button class="btn" id="ls-play">Rejoin the pieces</button>
+ <button class="btn" id="ls-step">Match one row</button>
+ <button class="btn" id="ls-reset">Reset</button>`,
 'the shared columns must be a key of at least one piece')}
 <p>Notice the failure mode. The lossy split does not lose rows: it <b>gains</b> them. Every original
 row is still there, buried among fabrications, and no query can tell which is which. That is why
@@ -5634,8 +5872,10 @@ function initWeek5() {
   (function () {
     const R = [['s1', 'DBMS', 'LH-1'], ['s2', 'DBMS', 'LH-1'], ['s3', 'PDSA', 'LH-3'],
       ['s4', 'ML', 'LH-1']];
+    let key = 'good', shown = 0, total = 0;
+
     function draw(k) {
-      const good = k === 'good';
+      const good = (k === undefined ? key : k) === 'good';
       let t1, t2, c1, c2, res;
       if (good) {
         c1 = ['sid', 'course_id']; c2 = ['course_id', 'room'];
@@ -5656,28 +5896,65 @@ function initWeek5() {
       tb('#ls-t1', c1, t1); tb('#ls-t2', c2, t2);
       $('#ls-l1').textContent = 'R1(' + c1.join(', ') + ')';
       $('#ls-l2').textContent = 'R2(' + c2.join(', ') + ')';
+      /* Rows appear as the join finds them. Watching the count climb past the
+         original four is what makes "it gained rows" land. */
+      total = res.length;
+      const upto = shown >= total ? total : shown;
+      const vis = res.slice(0, upto);
       $('#ls-res').innerHTML = '<thead><tr><th>sid</th><th>course_id</th><th>room</th></tr></thead><tbody>' +
-        res.map(r => {
+        (vis.length ? vis.map((r, i) => {
           const real = orig.has(r.join('|'));
-          return `<tr class="${real ? '' : 'lo'}">` + r.map(v => `<td>${v}</td>`).join('') + '</tr>';
-        }).join('') + '</tbody>';
-      const spur = res.filter(r => !orig.has(r.join('|'))).length;
+          const justNow = i === upto - 1 && upto < total;
+          return `<tr class="${real ? (justNow ? 'cu' : '') : 'lo'}">` +
+            r.map(v => `<td>${v}</td>`).join('') + '</tr>';
+        }).join('')
+          : '<tr><td class="nul" colspan="3">nothing matched yet</td></tr>') + '</tbody>';
+      const spurAll = res.filter(r => !orig.has(r.join('|'))).length;
+      const spurNow = vis.filter(r => !orig.has(r.join('|'))).length;
       $('#ls-hd').innerHTML = good
         ? 'shared attribute <b>course_id</b>: is it a key of R2?'
         : 'shared attribute <b>room</b>: is it a key of either piece?';
-      $('#ls-verd').textContent = spur ? spur + ' fabricated rows' : 'exact reconstruction';
-      $('#ls-note').innerHTML = good
-        ? '<code>course_id</code> is a key of R2 (one room per course), so each R1 row lines up with exactly one R2 row. The join returns the original four rows and nothing else.'
-        : '<code>room</code> is a key of <b>neither</b> piece: LH-1 appears three times on the left and twice on the right. The join pairs them all, producing ' +
-          spur + ' rows that were never in the original, and no query can tell them from the real ones.';
+      $('#ls-verd').textContent = upto < total
+        ? upto + ' of ' + total + ' rows matched so far'
+        : (spurAll ? spurAll + ' fabricated rows' : 'exact reconstruction');
+      $('#ls-note').innerHTML = upto < total
+        ? 'Matching row by row on <b>' + (good ? 'course_id' : 'room') + '</b>. ' +
+          (spurNow
+            ? 'Rows in red were <b>never in the original table</b>: they are pairings the shared value permitted but reality did not.'
+            : 'So far every matched row is a real one. Keep going.')
+        : good
+          ? '<code>course_id</code> is a key of R2 (one room per course), so each R1 row lines up with exactly one R2 row. The join returns the original four rows and nothing else.'
+          : '<code>room</code> is a key of <b>neither</b> piece: LH-1 appears three times on the left and twice on the right. The join pairs them all, producing ' +
+            spurAll + ' rows that were never in the original, and no query can tell them from the real ones.';
       const m = $('#f-loss-msg');
-      m.className = 'msg ' + (spur ? 'bad' : 'good');
-      m.textContent = spur
-        ? 'Lossy. Notice it did not lose rows: it gained them. All four originals are still there, buried among fabrications.'
-        : 'Lossless. The shared column is a key of R2, so the join can only line each row up one way.';
+      m.className = 'msg ' + (upto < total ? '' : spurAll ? 'bad' : 'good');
+      m.textContent = upto < total
+        ? 'The original table had 4 rows. Watch where this count ends up.'
+        : spurAll
+          ? 'Lossy. Notice it did not lose rows: it gained them. All four originals are still there, buried among fabrications.'
+          : 'Lossless. The shared column is a key of R2, so the join can only line each row up one way.';
+      $('#ls-step').disabled = upto >= total;
     }
-    setPills($('#f-loss'), 'ls', draw);
+
+    const tk = ticker($('#f-loss'), () => {
+      shown++;
+      if (shown >= total) { shown = total; tk.pause(); }
+      draw(); label();
+    }, 620);
+    function label() {
+      $('#ls-play').textContent = tk.playing ? 'Pause'
+        : shown >= total ? 'Rejoin again' : 'Rejoin the pieces';
+    }
+    $('#ls-play').onclick = () => {
+      if (!tk.playing && shown >= total) shown = 0;
+      tk.toggle(); label(); draw();
+    };
+    $('#ls-step').onclick = () => { tk.pause(); shown++; draw(); label(); };
+    $('#ls-reset').onclick = () => { tk.pause(); shown = 0; draw(); label(); };
+    setPills($('#f-loss'), 'ls', k => { key = k; shown = 0; tk.pause(); draw(); label(); });
+    shown = 0;
     draw('good');
+    label();
   })();
 
   /* ---- Fig 5.7 dependency preservation ---- */
@@ -7127,13 +7404,18 @@ function initWeek7() {
       ['back up the chain', 'the response is assembled', 'and returned',
         'Rows go back to the application server, which turns them into HTML, which the web server sends back over HTTP, which the browser renders. <b>Server-side caching</b> can short-circuit this: cached query results, cached generated HTML and pooled connections all live at the server.'],
     ];
+    const B = [['browser', 8, 92], ['web server', 116, 100], ['application server', 232, 126],
+      ['database server', 374, 132]];
+    const L = B[0][1] + 6, R = B[3][1] + B[3][2] - 6;
     let k = 0;
+    /* Three requests in flight at once, at different phases. The point being
+       made in the text is that one web server serves many clients
+       simultaneously, which a single travelling dot would contradict. */
+    const REQ = [{ p: 0.05 }, { p: 0.42 }, { p: 0.78 }];
+
     function draw() {
-      const B = [['browser', 8, 92], ['web server', 116, 100], ['application server', 232, 126],
-        ['database server', 374, 132]];
       let s = '';
       B.forEach(([name, x, w], i) => {
-        const on = i === k || (k === 4);
         const isBrowser = i === 0;
         s += DG.box(x, 40, w, 36, name, null, {
           fill: i === k ? 'var(--indigo-tint)' : '#fff',
@@ -7145,7 +7427,12 @@ function initWeek7() {
       s += DG.txt(DG.PAD, 24, P[k][1], { cls: 'm', fill: 'var(--indigo)' });
       s += DG.txt(8, 96, 'client', { cls: 'm mu' });
       s += DG.txt(116, 96, 'the three components of the web architecture', { cls: 'm mu' });
+      /* the lane the requests travel along, above the boxes */
+      s += DG.line(L, 32, R, 32, { stroke: '#eeeeec' });
+      s += REQ.map((r, i) =>
+        `<circle class="wbq" data-i="${i}" cx="${L}" cy="32" r="3.6" fill="var(--indigo)"/>`).join('');
       $('#wb-svg').innerHTML = s;
+      place();
       $('#wb-hd').textContent = 'step ' + (k + 1) + ' of 5';
       $('#wb-n').textContent = P[k][2];
       $('#wb-note').innerHTML = P[k][3];
@@ -7153,8 +7440,26 @@ function initWeek7() {
       $('#wb-back').disabled = k <= 0;
       $('#f-web-msg').textContent = k === 0
         ? 'The browser is the client. It is not one of the three components, and neither is the GUI it provides.'
-        : 'three servers, and the browser is not one of them';
+        : 'Several requests are in flight at once, which is the whole point of one server accepting many clients.';
     }
+
+    /* p in [0,1): first half travels right as a request, second half travels
+       back left as a response, so each dot makes a round trip. */
+    function place() {
+      $$('#wb-svg .wbq').forEach(c => {
+        const r = REQ[+c.dataset.i];
+        const out = r.p < 0.5;
+        const t = out ? r.p * 2 : (1 - r.p) * 2;
+        c.setAttribute('cx', lerp(L, R, t).toFixed(1));
+        c.setAttribute('fill', out ? 'var(--indigo)' : 'var(--green)');
+      });
+    }
+
+    raf($('#f-web'), dt => {
+      REQ.forEach((r, i) => { r.p = (r.p + dt * (0.16 + i * 0.02)) % 1; });
+      place();
+    });
+
     $('#wb-step').onclick = () => { if (k < P.length - 1) k++; draw(); };
     $('#wb-back').onclick = () => { if (k > 0) k--; draw(); };
     $('#wb-reset').onclick = () => { k = 0; draw(); };
@@ -7543,11 +7848,14 @@ more than one correct answer.</p>
 ${fig('f-shape',
 `<div class="panel">
   <div class="phead"><span class="m" id="sh-hd"></span><span class="m" id="sh-h"></span></div>
+  <div id="sh-seq" style="font-family:var(--mono);font-size:11.5px;margin-bottom:6px"></div>
   <svg class="d" viewBox="0 0 520 176" id="sh-svg"></svg>
   <div class="msg" id="sh-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 8.5, The same seven values inserted in two different orders. Same values, same rules, wildly different cost.',
-`<span class="lab">inserted in this order:</span>${pills('sh', [['bal', '23, 12, 31, 4, 18, 27, 40'], ['deg', '4, 12, 18, 23, 27, 31, 40']], 0)}`,
+`<span class="lab">inserted in this order:</span>${pills('sh', [['bal', '23, 12, 31, 4, 18, 27, 40'], ['deg', '4, 12, 18, 23, 27, 31, 40']], 0)}
+ <button class="btn" id="sh-play">Play</button><button class="btn" id="sh-step">Insert next</button>
+ <button class="btn" id="sh-reset">Reset</button>`,
 'a BST built from already-sorted data degenerates into a list')}
 <p>Insert values in <b>sorted</b> order and every new value goes to the right of the last one. The
 tree becomes a straight line, its height becomes <i>n</i> &minus; 1, and searching it costs exactly
@@ -7609,11 +7917,15 @@ move), so the structure is worth knowing.</p>
 </dl>
 ${fig('f-disk',
 `<div class="panel">
+  <div class="phead"><span class="m" id="dk-state"></span><span class="m" id="dk-wait"></span></div>
   <svg class="d" viewBox="0 0 520 200" id="dk-svg"></svg>
   <div class="msg" id="dk-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 8.6, The parts of a magnetic disk. Pick one to see what it is and what it costs you.',
-`<span class="lab">part:</span>${pills('dk', [['pl', 'platter'], ['tr', 'track'], ['se', 'sector'], ['cy', 'cylinder'], ['hd', 'head &amp; arm'], ['sp', 'spindle']], -1)}`,
+`<span class="lab">part:</span>${pills('dk', [['pl', 'platter'], ['tr', 'track'], ['se', 'sector'], ['cy', 'cylinder'], ['hd', 'head &amp; arm'], ['sp', 'spindle']], -1)}
+ <button class="btn" id="dk-play">Play</button>
+ <button class="btn" id="dk-seek">Seek to another track</button>
+ ${slider('dk-rpm', 3600, 15000, 600, 7200, 'rpm')}`,
 'the disk is slow because parts of it physically move')}
 
 <h3>Two facts that come straight out of the geometry</h3>
@@ -7843,8 +8155,9 @@ ${fig('f-buf',
 'Fig 8.9, The same request sequence through both policies. The grid shows the buffer after every request.',
 `<span class="lab">policy:</span>${pills('bf', [['lru', 'LRU'], ['mru', 'MRU']], 0)}
  ${slider('bf-f', 2, 5, 1, 3, 'buffer frames')}
- <button class="btn" id="bf-step">Step</button><button class="btn" id="bf-all">Run all</button>
- <button class="btn" id="bf-reset">Reset</button>`,
+ <button class="btn" id="bf-play">Play</button><button class="btn" id="bf-step">Step</button>
+ <button class="btn" id="bf-all">Run all</button><button class="btn" id="bf-reset">Reset</button>
+ <button class="btn" id="bf-seed">New request sequence</button>`,
 'a hit costs nothing; a miss costs a disk read')}
 <p>Two things are worth noticing while stepping through it.</p>
 <p><b>Neither policy always wins.</b> On some request sequences MRU beats LRU and on others it loses.
@@ -7883,10 +8196,34 @@ function initWeek8() {
         s += `<rect x="${52 + i * 118}" y="140" width="9" height="3" fill="${f[2]}"/>`;
         s += DG.txt(66 + i * 118, 145, f[0], { cls: 'm mu' });
       });
+      /* where each curve sits at the current n, so the gap can be read off */
+      F.forEach(f => {
+        const v = f[1](n);
+        if (v <= maxY) {
+          s += `<circle cx="${x(n).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.2" ` +
+            `fill="${f[2]}" stroke="#fff" stroke-width="1"/>`;
+        }
+      });
       s += DG.txt(36, 26, 'ops', { anchor: 'end', cls: 'm mu' });
       s += DG.txt(36, 133, '0', { anchor: 'end', cls: 'm mu' });
       s += DG.txt(DG.W - 22, 14, 'n = ' + n, { anchor: 'end', cls: 'm mu' });
+      /* a transparent plate so the chart itself can be read with the pointer */
+      s += `<rect id="co-hit" x="40" y="20" width="${DG.W - 62}" height="110" ` +
+        `fill="transparent" style="cursor:crosshair"/>`;
       $('#co-svg').innerHTML = s;
+      const hit = $('#co-hit');
+      if (hit) {
+        const pick = ev => {
+          const r = $('#co-svg').getBoundingClientRect();
+          /* the viewBox is 520 wide, so scale the client offset into user units */
+          const ux = (ev.clientX - r.left) / r.width * DG.W;
+          const i = Math.round((ux - 40) / (DG.W - 66) * 64);
+          $('#co-n').value = clamp(i, 1, 64);
+          draw();
+        };
+        hit.onmousemove = pick;
+        hit.onclick = pick;
+      }
       $('#co-tbl').innerHTML = '<thead><tr><th>growth</th><th>operations at n = ' + n +
         '</th><th>meaning</th></tr></thead><tbody>' +
         [['O(1)', 1, 'constant: size makes no difference at all'],
@@ -7903,7 +8240,7 @@ function initWeek8() {
         (lin / log).toFixed(1) + ' to 1, and it keeps widening, because one grows and the other barely does.';
       $('#f-cost-msg').textContent = n <= 4
         ? 'At tiny sizes the curves are almost on top of each other. Growth rate only matters as n gets large, which for a database it always is.'
-        : 'the gap between growth rates is what matters, not the speed of a single step';
+        : 'Sweep the pointer across the chart to read every cost at any n. The gap between growth rates is what matters, not the speed of a single step.';
     }
     $('#co-n').oninput = draw;
     draw();
@@ -8089,43 +8426,133 @@ function initWeek8() {
     draw();
   })();
 
-  /* ---- Fig 8.5 shape depends on insertion order ---- */
+  /* ---- Fig 8.5 shape depends on insertion order ----
+     Values go in one at a time so the shape is seen being built. That is
+     exactly the simulation an "which sequence produces this tree" question
+     asks you to run by hand. Layout is computed from the real tree, so any
+     insertion order draws correctly. */
   (function () {
-    const BAL = [[23, 260, 26], [12, 150, 74], [31, 370, 74], [4, 96, 122], [18, 204, 122],
-      [27, 314, 122], [40, 426, 122]];
-    const BALE = [[23, 12], [23, 31], [12, 4], [12, 18], [31, 27], [31, 40]];
-    const DEG = [4, 12, 18, 23, 27, 31, 40].map((v, i) => [v, 40 + i * 66, 26 + i * 20]);
-    const DEGE = [4, 12, 18, 23, 27, 31].map((v, i) => [v, [12, 18, 23, 27, 31, 40][i]]);
-    function draw(k) {
-      const bal = k === 'bal';
-      const N = bal ? BAL : DEG, E = bal ? BALE : DEGE;
-      const at = v => N.find(x => x[0] === v);
-      let s = '';
-      E.forEach(([a, b]) => {
-        const p = at(a), c = at(b);
-        s += DG.line(p[1], p[2] + 12, c[1], c[2] - 12, { stroke: '#c9c9c4' });
+    const ORD = { bal: [23, 12, 31, 4, 18, 27, 40], deg: [4, 12, 18, 23, 27, 31, 40] };
+    let key = 'bal', n = 1;
+
+    /* plain BST insert; records the path taken so the last step can be shown */
+    function build(vals) {
+      let root = null;
+      const path = [];
+      vals.forEach((v, i) => {
+        const node = { v, l: null, r: null };
+        if (!root) { root = node; if (i === vals.length - 1) path.push(v); return; }
+        let cur = root, trail = [];
+        for (;;) {
+          trail.push(cur.v);
+          if (v < cur.v) { if (!cur.l) { cur.l = node; break; } cur = cur.l; }
+          else { if (!cur.r) { cur.r = node; break; } cur = cur.r; }
+        }
+        if (i === vals.length - 1) { trail.push(v); path.push(...trail); }
       });
-      N.forEach(([v, x, y]) => {
-        s += `<circle cx="${x}" cy="${y}" r="13" fill="#fff" stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}"/>`;
+      return { root, path };
+    }
+
+    /* x from in-order position, y from depth: no coordinates hard-coded */
+    function layout(root) {
+      const pos = [];
+      let idx = 0, maxd = 0;
+      (function walk(nd, d) {
+        if (!nd) return;
+        walk(nd.l, d + 1);
+        pos.push({ v: nd.v, i: idx++, d, nd });
+        maxd = Math.max(maxd, d);
+        walk(nd.r, d + 1);
+      })(root, 0);
+      const W = DG.W - 2 * DG.PAD - 26;
+      const stepX = pos.length > 1 ? W / (pos.length - 1) : 0;
+      const stepY = maxd > 0 ? Math.min(38, 120 / maxd) : 0;
+      const xy = {};
+      pos.forEach(p => { xy[p.v] = [DG.PAD + 13 + p.i * stepX, 30 + p.d * stepY]; });
+      return { xy, height: maxd, pos };
+    }
+
+    function draw() {
+      const vals = ORD[key].slice(0, n);
+      const bal = key === 'bal';
+      const { root, path } = build(vals);
+      const { xy, height } = layout(root);
+      const just = vals[vals.length - 1];
+      let s = '';
+      /* edges first, so nodes sit on top */
+      (function edges(nd) {
+        if (!nd) return;
+        [nd.l, nd.r].forEach(c => {
+          if (!c) return;
+          const a = xy[nd.v], b = xy[c.v];
+          const onPath = path.includes(nd.v) && path.includes(c.v);
+          s += DG.line(a[0], a[1] + 12, b[0], b[1] - 12,
+            { stroke: onPath ? (bal ? 'var(--indigo)' : 'var(--terra)') : '#c9c9c4',
+              sw: onPath ? 1.7 : 1 });
+          edges(c);
+        });
+      })(root);
+      Object.keys(xy).forEach(k => {
+        const v = +k, [x, y] = xy[k];
+        const isNew = v === just, onPath = path.includes(v);
+        s += `<circle cx="${x}" cy="${y}" r="13" ` +
+          `fill="${isNew ? (bal ? 'var(--indigo-tint)' : 'var(--terra-tint)') : '#fff'}" ` +
+          `stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}" ` +
+          `stroke-width="${isNew ? 1.8 : onPath ? 1.4 : 1}"/>`;
         s += DG.txt(x, y + 4, String(v), { anchor: 'middle', cls: 'm' });
       });
-      s += DG.txt(DG.PAD, 172, bal
-        ? 'height 2, so at most 3 comparisons to find anything'
-        : 'height 6, so up to 7 comparisons, exactly as slow as linear search', { cls: 'm mu' });
+      const done = n === ORD[key].length;
+      s += DG.txt(DG.PAD, 172, done
+        ? (bal ? 'height 2, so at most 3 comparisons to find anything'
+          : 'height 6, so up to 7 comparisons, exactly as slow as linear search')
+        : 'height so far ' + height + ', after ' + n + ' of ' + ORD[key].length + ' insertions',
+      { cls: 'm mu' });
       $('#sh-svg').innerHTML = s;
+
+      /* the sequence, with what has gone in so far marked */
+      $('#sh-seq').innerHTML = ORD[key].map((v, i) =>
+        `<span style="padding:1px 6px;margin-right:3px;border-radius:3px;` +
+        (i < n
+          ? (i === n - 1
+            ? `background:${bal ? 'var(--indigo)' : 'var(--terra)'};color:#fff`
+            : `background:var(--card)`)
+          : `color:var(--muted)`) + `">${v}</span>`).join('') +
+        (n === 1 ? ' <span style="color:var(--muted)">first in, so this is the root</span>' : '');
+
       $('#sh-hd').textContent = bal ? 'balanced insertion order' : 'already-sorted insertion order';
-      $('#sh-h').textContent = bal ? 'height 2' : 'height 6';
-      $('#sh-note').innerHTML = bal
-        ? 'The middle value went in first, so each half split evenly. Seven nodes fit in a height of 2, and every search costs at most 3 comparisons. Note that <b>23 was inserted first and is the root</b>, which is the quickest check on any insertion-order question.'
-        : 'Each value was larger than the last, so each one attached to the <b>right</b> of the previous. The tree is a straight line: height 6, and searching it costs the same as scanning a list. <b>Every advantage of the tree is gone</b>, and nothing about the rules was broken.';
+      $('#sh-h').textContent = done ? 'height ' + height : 'height ' + height + ', still inserting';
+      $('#sh-note').innerHTML = !done
+        ? 'Inserting <b>' + just + '</b>: the search runs from the root, going left when the value is ' +
+          'smaller and right when it is larger, and the value lands wherever that search runs out. ' +
+          '<b>Nothing already placed ever moves</b>, which is why the first value inserted stays the root ' +
+          'for good.'
+        : bal
+          ? 'The middle value went in first, so each half split evenly. Seven nodes fit in a height of 2, and every search costs at most 3 comparisons. Note that <b>23 was inserted first and is the root</b>, which is the quickest check on any insertion-order question.'
+          : 'Each value was larger than the last, so each one attached to the <b>right</b> of the previous. The tree is a straight line: height 6, and searching it costs the same as scanning a list. <b>Every advantage of the tree is gone</b>, and nothing about the rules was broken.';
       const m = $('#f-shape-msg');
-      m.className = 'msg ' + (bal ? 'good' : 'bad');
-      m.textContent = bal
-        ? 'Same seven values, same rules. Only the order they arrived in differs.'
-        : 'This is why real indexes are self-balancing: sorted input is common, and this is what it would otherwise do.';
+      m.className = 'msg ' + (done ? (bal ? 'good' : 'bad') : '');
+      m.textContent = !done
+        ? 'Each value lands as a leaf, at the point where the search for it fails.'
+        : bal
+          ? 'Same seven values, same rules. Only the order they arrived in differs.'
+          : 'This is why real indexes are self-balancing: sorted input is common, and this is what it would otherwise do.';
+      $('#sh-step').disabled = done;
     }
-    setPills($('#f-shape'), 'sh', draw);
-    draw('bal');
+
+    const tk = ticker($('#f-shape'), () => {
+      n++;
+      if (n >= ORD[key].length) { n = ORD[key].length; tk.pause(); }
+      draw(); label();
+    }, 850);
+    function label() { $('#sh-play').textContent = tk.playing ? 'Pause' : 'Play'; }
+    $('#sh-play').onclick = () => {
+      if (!tk.playing && n >= ORD[key].length) { n = 1; draw(); }
+      tk.toggle(); label();
+    };
+    $('#sh-step').onclick = () => { if (n < ORD[key].length) n++; draw(); };
+    $('#sh-reset').onclick = () => { tk.pause(); n = 1; draw(); label(); };
+    setPills($('#f-shape'), 'sh', k => { key = k; n = 1; tk.pause(); draw(); label(); });
+    draw(); label();
   })();
 
   /* ---- Fig 8.6 disk anatomy ---- */
@@ -8138,49 +8565,147 @@ function initWeek8() {
       hd: 'One <b>read-write head</b> floats over each surface, all mounted on a single <b>arm</b> that swings in and out. Moving it is mechanical and slow, and it is the single largest component of access time.',
       sp: 'The <b>spindle</b> holds all the platters and spins them together at a constant rate, commonly 7200 rpm. Because it never stops or reverses, a sector that has just passed can only be reached by <b>waiting a full revolution</b>, and that wait is the rotational latency.',
     };
-    function draw(k) {
-      const on = id => k === id;
+    /* geometry shared between the static drawing and the animation */
+    const CX = 400, CY = 78, RT = [56, 42, 28];   /* three tracks, outer to inner */
+    const ARM_X = [232, 220, 208];                /* head rest position per track */
+    let part = null, track = 1, rot = 0, armAt = ARM_X[1], seeking = false;
+
+    function draw() {
+      const on = id => part === id;
       const col = id => on(id) ? 'var(--indigo)' : '#c9c9c4';
       let s = DG.txt(DG.PAD, 16, 'side view', { cls: 'm mu' });
       [0, 1, 2].forEach(i => {
         const y = 38 + i * 34;
         s += `<ellipse cx="126" cy="${y}" rx="96" ry="9" fill="${on('pl') ? 'var(--indigo-tint)' : '#fff'}" ` +
           `stroke="${col('pl')}"/>`;
-        s += DG.line(206, y - 5, 232, y - 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
-        s += DG.line(206, y + 5, 232, y + 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
+        s += `<line class="hdln" x1="${armAt - 26}" y1="${y - 5}" x2="${armAt}" y2="${y - 5}" ` +
+          `stroke="${col('hd')}" stroke-width="${on('hd') ? 1.8 : 1}"/>`;
+        s += `<line class="hdln" x1="${armAt - 26}" y1="${y + 5}" x2="${armAt}" y2="${y + 5}" ` +
+          `stroke="${col('hd')}" stroke-width="${on('hd') ? 1.8 : 1}"/>`;
       });
       s += DG.line(126, 24, 126, 120, { stroke: col('sp'), sw: on('sp') ? 2.2 : 1.2 });
       s += DG.txt(126, 138, 'spindle', { anchor: 'middle', cls: 'm', fill: on('sp') ? 'var(--indigo)' : 'var(--muted)' });
-      s += DG.line(236, 24, 236, 120, { stroke: col('hd'), sw: on('hd') ? 2.2 : 1.2 });
-      s += DG.txt(236, 138, 'arm', { anchor: 'middle', cls: 'm', fill: on('hd') ? 'var(--indigo)' : 'var(--muted)' });
+      s += `<line class="armln" x1="${armAt}" y1="24" x2="${armAt}" y2="120" ` +
+        `stroke="${col('hd')}" stroke-width="${on('hd') ? 2.2 : 1.2}"/>`;
+      s += `<text class="m armlb" x="${armAt}" y="138" text-anchor="middle" ` +
+        `fill="${on('hd') ? 'var(--indigo)' : 'var(--muted)'}">arm</text>`;
       if (on('cy')) {
         s += `<rect x="182" y="26" width="18" height="96" fill="var(--indigo-tint)" stroke="var(--indigo)" stroke-dasharray="3 2"/>`;
         s += DG.txt(191, 138, 'cylinder', { anchor: 'middle', cls: 'm', fill: 'var(--indigo)' });
       }
       s += DG.txt(300, 16, 'one surface, from above', { cls: 'm mu' });
-      const cx = 400, cy = 78;
-      [56, 42, 28].forEach((r, i) => {
-        s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${i === 1 ? col('tr') : '#e5e5e3'}" ` +
-          `stroke-width="${i === 1 && on('tr') ? 1.8 : 1}"/>`;
+
+      /* the tracks: the selected one is the one the head is over */
+      RT.forEach((r, i) => {
+        const sel = i === track;
+        s += `<circle class="trk" cx="${CX}" cy="${CY}" r="${r}" fill="none" ` +
+          `stroke="${sel ? (on('tr') ? 'var(--indigo)' : '#8f8f89') : '#e5e5e3'}" ` +
+          `stroke-width="${sel && on('tr') ? 1.8 : 1}"/>`;
       });
+
+      /* everything inside this group turns with the platter */
+      s += `<g id="dk-rot" class="nt">`;
       for (let a = 0; a < 8; a++) {
         const th = (a * Math.PI) / 4;
-        s += DG.line(cx + 28 * Math.cos(th), cy + 28 * Math.sin(th),
-          cx + 56 * Math.cos(th), cy + 56 * Math.sin(th), { stroke: '#e5e5e3' });
+        s += DG.line(CX + 28 * Math.cos(th), CY + 28 * Math.sin(th),
+          CX + 56 * Math.cos(th), CY + 56 * Math.sin(th), { stroke: '#e5e5e3' });
       }
-      if (on('se')) {
-        s += `<path d="M ${cx + 35} ${cy} A 35 35 0 0 1 ` +
-          `${(cx + 35 * Math.cos(Math.PI / 4)).toFixed(1)} ${(cy + 35 * Math.sin(Math.PI / 4)).toFixed(1)}" ` +
-          `fill="none" stroke="var(--indigo)" stroke-width="9" opacity="0.5"/>`;
-      }
-      s += DG.txt(cx, 152, on('se') ? 'one sector highlighted' : 'tracks and sectors',
+      /* the sector we are waiting for, drawn as an arc on the selected track */
+      const r = RT[track];
+      s += `<path id="dk-sec" d="M ${CX + r} ${CY} A ${r} ${r} 0 0 1 ` +
+        `${(CX + r * Math.cos(Math.PI / 4)).toFixed(1)} ${(CY + r * Math.sin(Math.PI / 4)).toFixed(1)}" ` +
+        `fill="none" stroke="${on('se') ? 'var(--indigo)' : 'var(--terra)'}" stroke-width="9" opacity="0.55"/>`;
+      s += `</g>`;
+
+      /* the head: fixed in space at 3 o'clock, the sector comes to it */
+      s += DG.line(CX + RT[0] + 14, CY, CX + r + 4, CY, { stroke: 'var(--muted)' });
+      s += `<circle id="dk-head" cx="${CX + r}" cy="${CY}" r="3.4" fill="var(--indigo)"/>`;
+      s += DG.txt(CX + RT[0] + 18, CY + 4, 'head', { cls: 'm mu' });
+      s += DG.txt(CX, 152, on('se') ? 'the sector we want, highlighted' : 'tracks and sectors',
         { anchor: 'middle', cls: 'm mu' });
       s += DG.txt(DG.PAD, 184, 'the arm swings; the platters spin; both take real time', { cls: 'm mu' });
       $('#dk-svg').innerHTML = s;
-      $('#dk-note').innerHTML = T[k] || 'Pick a part of the disk. The two views show the same drive from the side and from above.';
+      $('#dk-note').innerHTML = T[part] ||
+        'Pick a part of the disk. The two views show the same drive from the side and from above.';
+      spin();
     }
-    setPills($('#f-disk'), 'dk', draw);
-    draw(null);
+
+    /* apply the current rotation without rebuilding the drawing */
+    function spin() {
+      const g = $('#dk-rot');
+      if (g) g.setAttribute('transform', `rotate(${rot.toFixed(2)} ${CX} ${CY})`);
+    }
+
+    function readout() {
+      const rpm = +$('#dk-rpm').value;
+      const rev = 60000 / rpm;                       /* ms for one revolution */
+      /* The wanted sector is drawn from platter angle 0 to SEC, inside the
+         rotating group, so on screen it spans [rot, rot + SEC]. The head sits
+         at screen angle 0, which is the same place as 360. The sector is
+         therefore under the head once rot + SEC has reached 360. */
+      const SEC = 45;
+      const phase = ((rot % 360) + 360) % 360;
+      const under = phase >= 360 - SEC;
+      const remain = under ? 0 : (360 - SEC - phase) / 360 * rev;
+      $('#dk-rpm-v').textContent = rpm;
+      $('#dk-state').innerHTML = seeking
+        ? '<b style="color:var(--terra)">seeking</b>, moving the arm to another track'
+        : under ? '<b style="color:var(--green)">the sector is under the head, transferring</b>'
+          : 'waiting for the platter to bring the sector round';
+      $('#dk-wait').textContent = seeking ? 'seek in progress'
+        : under ? 'rotational wait 0.00 ms'
+          : 'rotational wait ' + remain.toFixed(2) + ' ms  (one turn = ' + rev.toFixed(2) + ' ms)';
+      const h = $('#dk-head');
+      if (h) h.setAttribute('fill', under ? 'var(--green)' : 'var(--indigo)');
+      const sec = $('#dk-sec');
+      if (sec && part !== 'se') sec.setAttribute('stroke', under ? 'var(--green)' : 'var(--terra)');
+    }
+
+    /* one continuous loop drives both the rotation and the seek */
+    let seekTo = armAt, spinning = true;
+    const loop = raf($('#f-disk'), dt => {
+      if (!spinning) { readout(); return; }
+      const rpm = +$('#dk-rpm').value;
+      /* slowed to about 1 turn per 2.2 s at 7200 rpm so the eye can follow it */
+      rot = (rot + dt * 360 * (rpm / 7200) / 2.2) % 360;
+      spin();
+      if (seeking) {
+        armAt = lerp(armAt, seekTo, Math.min(1, dt * 6));
+        if (Math.abs(armAt - seekTo) < 0.4) { armAt = seekTo; seeking = false; }
+        $$('#dk-svg .hdln').forEach(l => {
+          l.setAttribute('x1', (armAt - 26).toFixed(1));
+          l.setAttribute('x2', armAt.toFixed(1));
+        });
+        const a = $('#dk-svg .armln'), lb = $('#dk-svg .armlb');
+        if (a) { a.setAttribute('x1', armAt.toFixed(1)); a.setAttribute('x2', armAt.toFixed(1)); }
+        if (lb) lb.setAttribute('x', armAt.toFixed(1));
+        if (!seeking) draw();
+      }
+      readout();
+    });
+
+    /* Pause leaves the drawing exactly where it is, so a still frame can be
+       read off: the sector sits at a known angle from the head. */
+    function playLabel() {
+      $('#dk-play').textContent = ANIM.reduced ? 'Step the platter'
+        : spinning ? 'Pause' : 'Play';
+    }
+    $('#dk-play').onclick = () => {
+      if (ANIM.reduced) { rot = (rot + 22.5) % 360; spin(); readout(); return; }
+      spinning = !spinning;
+      playLabel();
+    };
+    $('#dk-seek').onclick = () => {
+      track = (track + 1) % RT.length;
+      seekTo = ARM_X[track];
+      seeking = true;
+      draw();
+    };
+    $('#dk-rpm').oninput = readout;
+    setPills($('#f-disk'), 'dk', k => { part = k; draw(); });
+    draw();
+    readout();
+    playLabel();
   })();
 
   /* ---- Fig 8.7 capacity ---- */
@@ -8268,8 +8793,15 @@ function initWeek8() {
 
   /* ---- Fig 8.9 buffer replacement ---- */
   (function () {
-    const REQ = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 4];
+    let REQ = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 4];
     let pol = 'lru', frames = 3, upto = 1;
+    /* A fresh sequence lets the reader test the claim that neither policy
+       always wins, rather than take it on trust. Repeats are deliberate:
+       without them there would be no hits to count. */
+    function reseed() {
+      const pool = [1, 2, 3, 4, 5, 6, 7, 9];
+      REQ = Array.from({ length: 12 }, () => pool[Math.floor(Math.random() * pool.length)]);
+    }
     function run(n, policy) {
       const buf = [], used = new Map(), log = [];
       let hits = 0;
@@ -8336,12 +8868,28 @@ function initWeek8() {
             (pol === 'lru' ? 'MRU' : 'LRU') + ' gets ' + other +
             '. Switch policies and compare; the winner depends entirely on the request sequence.';
     }
-    setPills($('#f-buf'), 'bf', v => { pol = v; draw(); });
-    $('#bf-f').oninput = () => { frames = +$('#bf-f').value; draw(); };
-    $('#bf-step').onclick = () => { if (upto < REQ.length) upto++; draw(); };
-    $('#bf-all').onclick = () => { upto = REQ.length; draw(); };
-    $('#bf-reset').onclick = () => { upto = 1; draw(); };
+    const tk = ticker($('#f-buf'), () => {
+      upto++;
+      if (upto >= REQ.length) { upto = REQ.length; tk.pause(); }
+      draw(); label();
+    }, 700);
+    function label() {
+      $('#bf-play').textContent = tk.playing ? 'Pause'
+        : upto >= REQ.length ? 'Play again' : 'Play';
+      $('#bf-step').disabled = upto >= REQ.length;
+    }
+    $('#bf-play').onclick = () => {
+      if (!tk.playing && upto >= REQ.length) upto = 1;
+      tk.toggle(); label(); draw();
+    };
+    setPills($('#f-buf'), 'bf', v => { pol = v; draw(); label(); });
+    $('#bf-f').oninput = () => { frames = +$('#bf-f').value; draw(); label(); };
+    $('#bf-step').onclick = () => { tk.pause(); if (upto < REQ.length) upto++; draw(); label(); };
+    $('#bf-all').onclick = () => { tk.pause(); upto = REQ.length; draw(); label(); };
+    $('#bf-reset').onclick = () => { tk.pause(); upto = 1; draw(); label(); };
+    $('#bf-seed').onclick = () => { tk.pause(); reseed(); upto = REQ.length; draw(); label(); };
     draw();
+    label();
   })();
 }
 </script>
@@ -8349,6 +8897,7 @@ function initWeek8() {
 <script>
 const app = $('#app'), bar = $('#topbar');
 function route() {
+  ANIM.clear();   /* stop every loop from the outgoing page before it is replaced */
   const h = location.hash.replace(/^#\/?/, '');
   const c = CH.find(x => x.s === h);
   bar.innerHTML = topbar(c ? c.s : null);

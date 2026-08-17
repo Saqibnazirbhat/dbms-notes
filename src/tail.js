@@ -1,6 +1,7 @@
 <script>
 const app = $('#app'), bar = $('#topbar');
 function route() {
+  ANIM.clear();   /* stop every loop from the outgoing page before it is replaced */
   const h = location.hash.replace(/^#\/?/, '');
   const c = CH.find(x => x.s === h);
   bar.innerHTML = topbar(c ? c.s : null);

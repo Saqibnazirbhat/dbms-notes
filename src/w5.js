@@ -389,7 +389,10 @@ ${fig('f-loss',
   <div class="msg" id="ls-note" style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px"></div>
 </div>`,
 'Fig 5.6, The same table split two ways. One rejoins perfectly; the other invents rows that were never in the original.',
-`<span class="lab">split on:</span>${pills('ls', [['good', 'shared: course_id'], ['bad', 'shared: room']], 0)}`,
+`<span class="lab">split on:</span>${pills('ls', [['good', 'shared: course_id'], ['bad', 'shared: room']], 0)}
+ <button class="btn" id="ls-play">Rejoin the pieces</button>
+ <button class="btn" id="ls-step">Match one row</button>
+ <button class="btn" id="ls-reset">Reset</button>`,
 'the shared columns must be a key of at least one piece')}
 <p>Notice the failure mode. The lossy split does not lose rows: it <b>gains</b> them. Every original
 row is still there, buried among fabrications, and no query can tell which is which. That is why
@@ -679,8 +682,10 @@ function initWeek5() {
   (function () {
     const R = [['s1', 'DBMS', 'LH-1'], ['s2', 'DBMS', 'LH-1'], ['s3', 'PDSA', 'LH-3'],
       ['s4', 'ML', 'LH-1']];
+    let key = 'good', shown = 0, total = 0;
+
     function draw(k) {
-      const good = k === 'good';
+      const good = (k === undefined ? key : k) === 'good';
       let t1, t2, c1, c2, res;
       if (good) {
         c1 = ['sid', 'course_id']; c2 = ['course_id', 'room'];
@@ -701,28 +706,65 @@ function initWeek5() {
       tb('#ls-t1', c1, t1); tb('#ls-t2', c2, t2);
       $('#ls-l1').textContent = 'R1(' + c1.join(', ') + ')';
       $('#ls-l2').textContent = 'R2(' + c2.join(', ') + ')';
+      /* Rows appear as the join finds them. Watching the count climb past the
+         original four is what makes "it gained rows" land. */
+      total = res.length;
+      const upto = shown >= total ? total : shown;
+      const vis = res.slice(0, upto);
       $('#ls-res').innerHTML = '<thead><tr><th>sid</th><th>course_id</th><th>room</th></tr></thead><tbody>' +
-        res.map(r => {
+        (vis.length ? vis.map((r, i) => {
           const real = orig.has(r.join('|'));
-          return `<tr class="${real ? '' : 'lo'}">` + r.map(v => `<td>${v}</td>`).join('') + '</tr>';
-        }).join('') + '</tbody>';
-      const spur = res.filter(r => !orig.has(r.join('|'))).length;
+          const justNow = i === upto - 1 && upto < total;
+          return `<tr class="${real ? (justNow ? 'cu' : '') : 'lo'}">` +
+            r.map(v => `<td>${v}</td>`).join('') + '</tr>';
+        }).join('')
+          : '<tr><td class="nul" colspan="3">nothing matched yet</td></tr>') + '</tbody>';
+      const spurAll = res.filter(r => !orig.has(r.join('|'))).length;
+      const spurNow = vis.filter(r => !orig.has(r.join('|'))).length;
       $('#ls-hd').innerHTML = good
         ? 'shared attribute <b>course_id</b>: is it a key of R2?'
         : 'shared attribute <b>room</b>: is it a key of either piece?';
-      $('#ls-verd').textContent = spur ? spur + ' fabricated rows' : 'exact reconstruction';
-      $('#ls-note').innerHTML = good
-        ? '<code>course_id</code> is a key of R2 (one room per course), so each R1 row lines up with exactly one R2 row. The join returns the original four rows and nothing else.'
-        : '<code>room</code> is a key of <b>neither</b> piece: LH-1 appears three times on the left and twice on the right. The join pairs them all, producing ' +
-          spur + ' rows that were never in the original, and no query can tell them from the real ones.';
+      $('#ls-verd').textContent = upto < total
+        ? upto + ' of ' + total + ' rows matched so far'
+        : (spurAll ? spurAll + ' fabricated rows' : 'exact reconstruction');
+      $('#ls-note').innerHTML = upto < total
+        ? 'Matching row by row on <b>' + (good ? 'course_id' : 'room') + '</b>. ' +
+          (spurNow
+            ? 'Rows in red were <b>never in the original table</b>: they are pairings the shared value permitted but reality did not.'
+            : 'So far every matched row is a real one. Keep going.')
+        : good
+          ? '<code>course_id</code> is a key of R2 (one room per course), so each R1 row lines up with exactly one R2 row. The join returns the original four rows and nothing else.'
+          : '<code>room</code> is a key of <b>neither</b> piece: LH-1 appears three times on the left and twice on the right. The join pairs them all, producing ' +
+            spurAll + ' rows that were never in the original, and no query can tell them from the real ones.';
       const m = $('#f-loss-msg');
-      m.className = 'msg ' + (spur ? 'bad' : 'good');
-      m.textContent = spur
-        ? 'Lossy. Notice it did not lose rows: it gained them. All four originals are still there, buried among fabrications.'
-        : 'Lossless. The shared column is a key of R2, so the join can only line each row up one way.';
+      m.className = 'msg ' + (upto < total ? '' : spurAll ? 'bad' : 'good');
+      m.textContent = upto < total
+        ? 'The original table had 4 rows. Watch where this count ends up.'
+        : spurAll
+          ? 'Lossy. Notice it did not lose rows: it gained them. All four originals are still there, buried among fabrications.'
+          : 'Lossless. The shared column is a key of R2, so the join can only line each row up one way.';
+      $('#ls-step').disabled = upto >= total;
     }
-    setPills($('#f-loss'), 'ls', draw);
+
+    const tk = ticker($('#f-loss'), () => {
+      shown++;
+      if (shown >= total) { shown = total; tk.pause(); }
+      draw(); label();
+    }, 620);
+    function label() {
+      $('#ls-play').textContent = tk.playing ? 'Pause'
+        : shown >= total ? 'Rejoin again' : 'Rejoin the pieces';
+    }
+    $('#ls-play').onclick = () => {
+      if (!tk.playing && shown >= total) shown = 0;
+      tk.toggle(); label(); draw();
+    };
+    $('#ls-step').onclick = () => { tk.pause(); shown++; draw(); label(); };
+    $('#ls-reset').onclick = () => { tk.pause(); shown = 0; draw(); label(); };
+    setPills($('#f-loss'), 'ls', k => { key = k; shown = 0; tk.pause(); draw(); label(); });
+    shown = 0;
     draw('good');
+    label();
   })();
 
   /* ---- Fig 5.7 dependency preservation ---- */

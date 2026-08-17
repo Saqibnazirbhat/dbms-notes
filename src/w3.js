@@ -1062,27 +1062,70 @@ function initWeek3() {
     const ROW1 = [['classroom', 6, 92], ['department', 108, 100], ['course', 218, 78],
       ['instructor', 306, 92], ['student', 408, 84]];
     const ROW2 = [['section', 150, 84], ['teaches', 250, 84], ['takes', 350, 76]];
-    function draw(k) {
+    /* which tables each link joins, and on what */
+    const LINKS = [
+      ['course', 'section', 'course_id', 257, 60, 192, 96],
+      ['instructor', 'teaches', 'ID', 352, 60, 292, 96],
+      ['student', 'takes', 'ID', 450, 60, 388, 96],
+      ['classroom', 'section', 'building, room_number', 56, 60, 150, 96],
+      ['section', 'teaches', 'course_id, sec_id, semester, year', 234, 111, 250, 111],
+      ['section', 'takes', 'course_id, sec_id, semester, year', 234, 111, 350, 111],
+      ['department', 'course', 'dept_name', 158, 60, 240, 60],
+      ['department', 'instructor', 'dept_name', 178, 55, 330, 55],
+      ['department', 'student', 'dept_name', 198, 50, 430, 50],
+    ];
+    let picked = null, hovered = null;
+
+    function draw() {
+      const k = hovered || picked;
+      const touches = id => k && (id === k || LINKS.some(l =>
+        (l[0] === k && l[1] === id) || (l[1] === k && l[0] === id)));
       let s = '';
-      [[257, 60, 192, 96], [352, 60, 292, 96], [450, 60, 388, 96], [56, 60, 150, 96]]
-        .forEach(([x1, y1, x2, y2]) => { s += DG.line(x1, y1, x2, y2, { stroke: '#e0e0dd' }); });
+      LINKS.forEach(([a, b, on, x1, y1, x2, y2]) => {
+        const lit = k && (a === k || b === k);
+        s += DG.line(x1, y1, x2, y2,
+          { stroke: lit ? 'var(--indigo)' : '#e0e0dd', sw: lit ? 1.6 : 1 });
+      });
       ROW1.concat(ROW2).forEach(([id, x, w], i) => {
-        const on = id === k;
+        const self = id === k, near = touches(id) && !self;
         s += DG.box(x, i < ROW1.length ? 30 : 96, w, 30, id, null, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
+          fill: self ? 'var(--indigo-tint)' : near ? 'var(--card)' : '#fff',
+          stroke: self ? 'var(--indigo)' : near ? '#8f8f89' : '#e5e5e3', r: 4, cls: 'm',
         });
       });
       s += DG.txt(DG.PAD, 20, 'the things that exist', { cls: 'm mu' });
       s += DG.txt(DG.PAD, 142, 'the tables that connect them', { cls: 'm mu' });
-      s += DG.txt(DG.PAD, 164, 'every example in this chapter runs against these eight tables',
-        { cls: 'm mu' });
+      s += DG.txt(DG.PAD, 164, k
+        ? 'lit: everything ' + k + ' can reach in one join'
+        : 'every example in this chapter runs against these eight tables', { cls: 'm mu' });
       $('#un-svg').innerHTML = s;
-      $('#un-note').innerHTML = k ? '<b>' + T[k][0] + '</b><br>' + T[k][1]
-        : 'Pick a table to see its columns. The top row holds the entities; the bottom row holds the tables that link them together.';
+
+      /* transparent hit areas on top, so hovering a box lights its joins */
+      const hit = ROW1.map(([id, x, w]) => [id, x, 30, w])
+        .concat(ROW2.map(([id, x, w]) => [id, x, 96, w]));
+      $('#un-svg').innerHTML += hit.map(([id, x, y, w]) =>
+        `<rect class="uhit" data-t="${id}" x="${x}" y="${y}" width="${w}" height="30" ` +
+        `fill="transparent" style="cursor:pointer"/>`).join('');
+      $$('#un-svg .uhit').forEach(r => {
+        r.onmouseenter = () => { hovered = r.dataset.t; draw(); };
+        r.onmouseleave = () => { hovered = null; draw(); };
+        r.onclick = () => { picked = picked === r.dataset.t ? null : r.dataset.t; hovered = null; draw(); };
+      });
+
+      if (k) {
+        const joins = LINKS.filter(l => l[0] === k || l[1] === k)
+          .map(l => '<b>' + (l[0] === k ? l[1] : l[0]) + '</b> on <code>' + l[2] + '</code>');
+        $('#un-note').innerHTML = '<b>' + T[k][0] + '</b><br>' + T[k][1] +
+          '<br><span style="color:var(--muted)">joins directly to:</span> ' +
+          (joins.length ? joins.join(', ') : 'nothing directly');
+      } else {
+        $('#un-note').innerHTML = 'Hover or pick a table to see its columns and every table it ' +
+          'joins to in one step. The top row holds the entities; the bottom row holds the tables ' +
+          'that link them together.';
+      }
     }
-    setPills($('#f-uni'), 'un', draw);
-    draw(null);
+    setPills($('#f-uni'), 'un', k => { picked = k; hovered = null; draw(); });
+    draw();
   })();
 
   /* ---- Fig 3.2 DISTINCT ---- */
