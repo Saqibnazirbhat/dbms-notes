@@ -102,8 +102,7 @@ ${fig('f-atom',
 </div>`,
 'Fig 1.1, The same transfer, twice. Run it to the end and both look identical. Crash it at the critical point and they part company.',
 `<span class="lab">version:</span>${pills('atom', [['file', 'file'], ['db', 'database']], 0)}
- <button class="btn" id="atom-play">Run it</button><button class="btn" id="atom-step">Step</button>
- <button class="btn" id="atom-crash">Cut the power now</button>
+ <button class="btn" id="atom-step">Step</button><button class="btn" id="atom-crash">Crash here</button>
  <button class="btn" id="atom-reset">Reset</button>`,
 'run it to the end and both versions agree')}
 <p>And it is worth being fair about how the database does it: <b>there is no magic</b>. A DBMS is
@@ -480,8 +479,8 @@ ${fig('f-eng',
   <div class="msg" id="eng-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 1.7, One query, from typed text to returned rows.',
-`<button class="btn" id="eng-play">Send a query</button><button class="btn" id="eng-step">Step</button>
- <button class="btn" id="eng-back">Back</button><button class="btn" id="eng-reset">Reset</button>`,
+`<button class="btn" id="eng-step">Step</button><button class="btn" id="eng-back">Back</button>
+ <button class="btn" id="eng-reset">Reset</button>`,
 'the optimizer is why you never have to say how to find the data')}
 <p>The <b>optimizer</b> is the interesting stage. One query can be written as several different
 relational algebra expressions, and each of those can be evaluated in several different orders. Each
@@ -592,11 +591,9 @@ function initWeek1() {
         (tot === 8000 ? '' : ', 500 destroyed');
       $('#atom-code').innerHTML = STEPS.map((s, i) => {
         const ran = i < done, isCrash = crashed === i;
-        const next = crashed < 0 && i === done && done < 6;   /* about to run */
-        return `<div style="padding:1px 5px;transition:background .18s ease;` +
-          `${ran ? 'background:var(--indigo-tint)' : next ? 'background:var(--card)' : ''}` +
+        return `<div style="padding:1px 5px;${ran ? 'background:var(--indigo-tint)' : ''}` +
           `${isCrash ? 'color:var(--terra)' : ''}">${i + 1}. ${s[0]}` +
-          (isCrash ? '   &larr; power lost here' : next ? '   &larr; next' : '') + '</div>' +
+          (isCrash ? '   &larr; crash' : '') + '</div>' +
           (i === 2 ? '<div style="padding:1px 5px;color:var(--terra)">&nbsp; &larr; critical point</div>' : '');
       }).join('');
       $('#atom-mode-l').textContent = mode === 'file'
@@ -619,27 +616,11 @@ function initWeek1() {
       $('#atom-step').disabled = step >= 6 || crashed >= 0;
       $('#atom-crash').disabled = step >= 6 || crashed >= 0 || step === 0;
     }
-    /* Letting it run is the point: the power has to be cut while the transfer
-       is actually in flight, which a stepped table never quite conveys. */
-    const tk = ticker($('#f-atom'), () => {
-      if (step < 6) step++;
-      if (step >= 6) tk.pause();
-      draw(); label();
-    }, 750);
-    function label() {
-      $('#atom-play').textContent = tk.playing ? 'Pause' : (step >= 6 || crashed >= 0 ? 'Run again' : 'Run it');
-      $('#atom-crash').disabled = crashed >= 0 || step === 0 || step >= 6;
-    }
-    $('#atom-play').onclick = () => {
-      if (!tk.playing && (step >= 6 || crashed >= 0)) { step = 0; crashed = -1; }
-      tk.toggle(); label(); draw();
-    };
-    setPills($('#f-atom'), 'atom', v => { mode = v; draw(); label(); });
-    $('#atom-step').onclick = () => { tk.pause(); if (step < 6) step++; draw(); label(); };
-    $('#atom-crash').onclick = () => { tk.pause(); crashed = step; draw(); label(); };
-    $('#atom-reset').onclick = () => { tk.pause(); step = 0; crashed = -1; draw(); label(); };
+    setPills($('#f-atom'), 'atom', v => { mode = v; draw(); });
+    $('#atom-step').onclick = () => { if (step < 6) step++; draw(); };
+    $('#atom-crash').onclick = () => { crashed = step; draw(); };
+    $('#atom-reset').onclick = () => { step = 0; crashed = -1; draw(); };
     draw();
-    label();
   })();
 
   /* ---- Fig 1.2 ACID ---- */
@@ -826,29 +807,20 @@ function initWeek1() {
       ['result returned', 'rows on your screen',
         'You get a table back. You never said how to find it, and if the storage layout changes tomorrow you still will not have to.'],
     ];
-    const BW = 78, GAP = 10;
-    const bx = i => DG.PAD + i * (BW + GAP);        /* left edge of box i */
-    const mid = i => bx(i) + BW / 2;
-    let k = 0, markX = mid(0);
-
+    let k = 0;
     function draw() {
-      let s = '';
+      const w = 78, gap = 10;
+      let x = DG.PAD, s = '';
       P.forEach((p, i) => {
         const on = i === k, done = i < k;
-        s += DG.box(bx(i), 40, BW, 34, String(i + 1), null, {
+        s += DG.box(x, 40, w, 34, String(i + 1), null, {
           fill: on ? 'var(--indigo-tint)' : done ? 'var(--card)' : '#fff',
           stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
         });
-        if (i < P.length - 1) {
-          s += DG.arrow(bx(i) + BW + 1, 57, bx(i) + BW + GAP - 1, 57, { stroke: '#c9c9c4' });
-        }
+        if (i < P.length - 1) s += DG.arrow(x + w + 1, 57, x + w + gap - 1, 57, { stroke: '#c9c9c4' });
+        x += w + gap;
       });
-      /* the query itself, travelling. On the last stage it is the answer
-         coming back, so it runs the other way. */
-      s += `<circle id="eng-mark" cx="${markX.toFixed(1)}" cy="30" r="4.5" ` +
-        `fill="${k >= P.length - 1 ? 'var(--green)' : 'var(--indigo)'}"/>`;
-      s += `<text id="eng-marklb" class="m mu" x="${markX.toFixed(1)}" y="20" text-anchor="middle">` +
-        (k >= P.length - 1 ? 'rows' : 'query') + '</text>';
+      s += DG.txt(DG.PAD, 26, P[k][0], { cls: 'm', fill: 'var(--indigo)' });
       s += DG.txt(DG.PAD, 94, P[k][1], { cls: 'm mu' });
       s += DG.txt(DG.PAD, 112, 'statistics about the data and about recent queries feed stages 3 and 4',
         { cls: 'm mu' });
@@ -859,37 +831,10 @@ function initWeek1() {
       $('#eng-step').disabled = k >= P.length - 1;
       $('#eng-back').disabled = k <= 0;
     }
-
-    /* Only the marker moves per frame, so the drawing is not rebuilt 60 times
-       a second. Target is the current stage, or back to the start once the
-       answer is on its way out. */
-    raf($('#f-eng'), dt => {
-      const want = k >= P.length - 1 ? mid(0) : mid(k);
-      if (Math.abs(markX - want) < 0.3) { markX = want; return; }
-      markX = lerp(markX, want, Math.min(1, dt * 4));
-      const c = $('#eng-mark'), l = $('#eng-marklb');
-      if (c) c.setAttribute('cx', markX.toFixed(1));
-      if (l) l.setAttribute('x', markX.toFixed(1));
-    });
-
-    const tk = ticker($('#f-eng'), () => {
-      k++;
-      if (k >= P.length - 1) { k = P.length - 1; tk.pause(); }
-      draw(); label();
-    }, 1100);
-    function label() {
-      $('#eng-play').textContent = tk.playing ? 'Pause'
-        : k >= P.length - 1 ? 'Send another' : 'Send a query';
-    }
-    $('#eng-play').onclick = () => {
-      if (!tk.playing && k >= P.length - 1) { k = 0; markX = mid(0); }
-      tk.toggle(); label(); draw();
-    };
-    $('#eng-step').onclick = () => { tk.pause(); if (k < P.length - 1) k++; draw(); label(); };
-    $('#eng-back').onclick = () => { tk.pause(); if (k > 0) k--; draw(); label(); };
-    $('#eng-reset').onclick = () => { tk.pause(); k = 0; markX = mid(0); draw(); label(); };
+    $('#eng-step').onclick = () => { if (k < P.length - 1) k++; draw(); };
+    $('#eng-back').onclick = () => { if (k > 0) k--; draw(); };
+    $('#eng-reset').onclick = () => { k = 0; draw(); };
     draw();
-    label();
   })();
 
   /* ---- Fig 1.8 relation as a subset ---- */

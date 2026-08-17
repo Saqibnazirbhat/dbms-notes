@@ -199,14 +199,11 @@ more than one correct answer.</p>
 ${fig('f-shape',
 `<div class="panel">
   <div class="phead"><span class="m" id="sh-hd"></span><span class="m" id="sh-h"></span></div>
-  <div id="sh-seq" style="font-family:var(--mono);font-size:11.5px;margin-bottom:6px"></div>
   <svg class="d" viewBox="0 0 520 176" id="sh-svg"></svg>
   <div class="msg" id="sh-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 8.5, The same seven values inserted in two different orders. Same values, same rules, wildly different cost.',
-`<span class="lab">inserted in this order:</span>${pills('sh', [['bal', '23, 12, 31, 4, 18, 27, 40'], ['deg', '4, 12, 18, 23, 27, 31, 40']], 0)}
- <button class="btn" id="sh-play">Play</button><button class="btn" id="sh-step">Insert next</button>
- <button class="btn" id="sh-reset">Reset</button>`,
+`<span class="lab">inserted in this order:</span>${pills('sh', [['bal', '23, 12, 31, 4, 18, 27, 40'], ['deg', '4, 12, 18, 23, 27, 31, 40']], 0)}`,
 'a BST built from already-sorted data degenerates into a list')}
 <p>Insert values in <b>sorted</b> order and every new value goes to the right of the last one. The
 tree becomes a straight line, its height becomes <i>n</i> &minus; 1, and searching it costs exactly
@@ -268,15 +265,11 @@ move), so the structure is worth knowing.</p>
 </dl>
 ${fig('f-disk',
 `<div class="panel">
-  <div class="phead"><span class="m" id="dk-state"></span><span class="m" id="dk-wait"></span></div>
   <svg class="d" viewBox="0 0 520 200" id="dk-svg"></svg>
   <div class="msg" id="dk-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 8.6, The parts of a magnetic disk. Pick one to see what it is and what it costs you.',
-`<span class="lab">part:</span>${pills('dk', [['pl', 'platter'], ['tr', 'track'], ['se', 'sector'], ['cy', 'cylinder'], ['hd', 'head &amp; arm'], ['sp', 'spindle']], -1)}
- <button class="btn" id="dk-play">Play</button>
- <button class="btn" id="dk-seek">Seek to another track</button>
- ${slider('dk-rpm', 3600, 15000, 600, 7200, 'rpm')}`,
+`<span class="lab">part:</span>${pills('dk', [['pl', 'platter'], ['tr', 'track'], ['se', 'sector'], ['cy', 'cylinder'], ['hd', 'head &amp; arm'], ['sp', 'spindle']], -1)}`,
 'the disk is slow because parts of it physically move')}
 
 <h3>Two facts that come straight out of the geometry</h3>
@@ -506,9 +499,8 @@ ${fig('f-buf',
 'Fig 8.9, The same request sequence through both policies. The grid shows the buffer after every request.',
 `<span class="lab">policy:</span>${pills('bf', [['lru', 'LRU'], ['mru', 'MRU']], 0)}
  ${slider('bf-f', 2, 5, 1, 3, 'buffer frames')}
- <button class="btn" id="bf-play">Play</button><button class="btn" id="bf-step">Step</button>
- <button class="btn" id="bf-all">Run all</button><button class="btn" id="bf-reset">Reset</button>
- <button class="btn" id="bf-seed">New request sequence</button>`,
+ <button class="btn" id="bf-step">Step</button><button class="btn" id="bf-all">Run all</button>
+ <button class="btn" id="bf-reset">Reset</button>`,
 'a hit costs nothing; a miss costs a disk read')}
 <p>Two things are worth noticing while stepping through it.</p>
 <p><b>Neither policy always wins.</b> On some request sequences MRU beats LRU and on others it loses.
@@ -547,34 +539,10 @@ function initWeek8() {
         s += `<rect x="${52 + i * 118}" y="140" width="9" height="3" fill="${f[2]}"/>`;
         s += DG.txt(66 + i * 118, 145, f[0], { cls: 'm mu' });
       });
-      /* where each curve sits at the current n, so the gap can be read off */
-      F.forEach(f => {
-        const v = f[1](n);
-        if (v <= maxY) {
-          s += `<circle cx="${x(n).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.2" ` +
-            `fill="${f[2]}" stroke="#fff" stroke-width="1"/>`;
-        }
-      });
       s += DG.txt(36, 26, 'ops', { anchor: 'end', cls: 'm mu' });
       s += DG.txt(36, 133, '0', { anchor: 'end', cls: 'm mu' });
       s += DG.txt(DG.W - 22, 14, 'n = ' + n, { anchor: 'end', cls: 'm mu' });
-      /* a transparent plate so the chart itself can be read with the pointer */
-      s += `<rect id="co-hit" x="40" y="20" width="${DG.W - 62}" height="110" ` +
-        `fill="transparent" style="cursor:crosshair"/>`;
       $('#co-svg').innerHTML = s;
-      const hit = $('#co-hit');
-      if (hit) {
-        const pick = ev => {
-          const r = $('#co-svg').getBoundingClientRect();
-          /* the viewBox is 520 wide, so scale the client offset into user units */
-          const ux = (ev.clientX - r.left) / r.width * DG.W;
-          const i = Math.round((ux - 40) / (DG.W - 66) * 64);
-          $('#co-n').value = clamp(i, 1, 64);
-          draw();
-        };
-        hit.onmousemove = pick;
-        hit.onclick = pick;
-      }
       $('#co-tbl').innerHTML = '<thead><tr><th>growth</th><th>operations at n = ' + n +
         '</th><th>meaning</th></tr></thead><tbody>' +
         [['O(1)', 1, 'constant: size makes no difference at all'],
@@ -591,7 +559,7 @@ function initWeek8() {
         (lin / log).toFixed(1) + ' to 1, and it keeps widening, because one grows and the other barely does.';
       $('#f-cost-msg').textContent = n <= 4
         ? 'At tiny sizes the curves are almost on top of each other. Growth rate only matters as n gets large, which for a database it always is.'
-        : 'Sweep the pointer across the chart to read every cost at any n. The gap between growth rates is what matters, not the speed of a single step.';
+        : 'the gap between growth rates is what matters, not the speed of a single step';
     }
     $('#co-n').oninput = draw;
     draw();
@@ -777,133 +745,43 @@ function initWeek8() {
     draw();
   })();
 
-  /* ---- Fig 8.5 shape depends on insertion order ----
-     Values go in one at a time so the shape is seen being built. That is
-     exactly the simulation an "which sequence produces this tree" question
-     asks you to run by hand. Layout is computed from the real tree, so any
-     insertion order draws correctly. */
+  /* ---- Fig 8.5 shape depends on insertion order ---- */
   (function () {
-    const ORD = { bal: [23, 12, 31, 4, 18, 27, 40], deg: [4, 12, 18, 23, 27, 31, 40] };
-    let key = 'bal', n = 1;
-
-    /* plain BST insert; records the path taken so the last step can be shown */
-    function build(vals) {
-      let root = null;
-      const path = [];
-      vals.forEach((v, i) => {
-        const node = { v, l: null, r: null };
-        if (!root) { root = node; if (i === vals.length - 1) path.push(v); return; }
-        let cur = root, trail = [];
-        for (;;) {
-          trail.push(cur.v);
-          if (v < cur.v) { if (!cur.l) { cur.l = node; break; } cur = cur.l; }
-          else { if (!cur.r) { cur.r = node; break; } cur = cur.r; }
-        }
-        if (i === vals.length - 1) { trail.push(v); path.push(...trail); }
-      });
-      return { root, path };
-    }
-
-    /* x from in-order position, y from depth: no coordinates hard-coded */
-    function layout(root) {
-      const pos = [];
-      let idx = 0, maxd = 0;
-      (function walk(nd, d) {
-        if (!nd) return;
-        walk(nd.l, d + 1);
-        pos.push({ v: nd.v, i: idx++, d, nd });
-        maxd = Math.max(maxd, d);
-        walk(nd.r, d + 1);
-      })(root, 0);
-      const W = DG.W - 2 * DG.PAD - 26;
-      const stepX = pos.length > 1 ? W / (pos.length - 1) : 0;
-      const stepY = maxd > 0 ? Math.min(38, 120 / maxd) : 0;
-      const xy = {};
-      pos.forEach(p => { xy[p.v] = [DG.PAD + 13 + p.i * stepX, 30 + p.d * stepY]; });
-      return { xy, height: maxd, pos };
-    }
-
-    function draw() {
-      const vals = ORD[key].slice(0, n);
-      const bal = key === 'bal';
-      const { root, path } = build(vals);
-      const { xy, height } = layout(root);
-      const just = vals[vals.length - 1];
+    const BAL = [[23, 260, 26], [12, 150, 74], [31, 370, 74], [4, 96, 122], [18, 204, 122],
+      [27, 314, 122], [40, 426, 122]];
+    const BALE = [[23, 12], [23, 31], [12, 4], [12, 18], [31, 27], [31, 40]];
+    const DEG = [4, 12, 18, 23, 27, 31, 40].map((v, i) => [v, 40 + i * 66, 26 + i * 20]);
+    const DEGE = [4, 12, 18, 23, 27, 31].map((v, i) => [v, [12, 18, 23, 27, 31, 40][i]]);
+    function draw(k) {
+      const bal = k === 'bal';
+      const N = bal ? BAL : DEG, E = bal ? BALE : DEGE;
+      const at = v => N.find(x => x[0] === v);
       let s = '';
-      /* edges first, so nodes sit on top */
-      (function edges(nd) {
-        if (!nd) return;
-        [nd.l, nd.r].forEach(c => {
-          if (!c) return;
-          const a = xy[nd.v], b = xy[c.v];
-          const onPath = path.includes(nd.v) && path.includes(c.v);
-          s += DG.line(a[0], a[1] + 12, b[0], b[1] - 12,
-            { stroke: onPath ? (bal ? 'var(--indigo)' : 'var(--terra)') : '#c9c9c4',
-              sw: onPath ? 1.7 : 1 });
-          edges(c);
-        });
-      })(root);
-      Object.keys(xy).forEach(k => {
-        const v = +k, [x, y] = xy[k];
-        const isNew = v === just, onPath = path.includes(v);
-        s += `<circle cx="${x}" cy="${y}" r="13" ` +
-          `fill="${isNew ? (bal ? 'var(--indigo-tint)' : 'var(--terra-tint)') : '#fff'}" ` +
-          `stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}" ` +
-          `stroke-width="${isNew ? 1.8 : onPath ? 1.4 : 1}"/>`;
+      E.forEach(([a, b]) => {
+        const p = at(a), c = at(b);
+        s += DG.line(p[1], p[2] + 12, c[1], c[2] - 12, { stroke: '#c9c9c4' });
+      });
+      N.forEach(([v, x, y]) => {
+        s += `<circle cx="${x}" cy="${y}" r="13" fill="#fff" stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}"/>`;
         s += DG.txt(x, y + 4, String(v), { anchor: 'middle', cls: 'm' });
       });
-      const done = n === ORD[key].length;
-      s += DG.txt(DG.PAD, 172, done
-        ? (bal ? 'height 2, so at most 3 comparisons to find anything'
-          : 'height 6, so up to 7 comparisons, exactly as slow as linear search')
-        : 'height so far ' + height + ', after ' + n + ' of ' + ORD[key].length + ' insertions',
-      { cls: 'm mu' });
+      s += DG.txt(DG.PAD, 172, bal
+        ? 'height 2, so at most 3 comparisons to find anything'
+        : 'height 6, so up to 7 comparisons, exactly as slow as linear search', { cls: 'm mu' });
       $('#sh-svg').innerHTML = s;
-
-      /* the sequence, with what has gone in so far marked */
-      $('#sh-seq').innerHTML = ORD[key].map((v, i) =>
-        `<span style="padding:1px 6px;margin-right:3px;border-radius:3px;` +
-        (i < n
-          ? (i === n - 1
-            ? `background:${bal ? 'var(--indigo)' : 'var(--terra)'};color:#fff`
-            : `background:var(--card)`)
-          : `color:var(--muted)`) + `">${v}</span>`).join('') +
-        (n === 1 ? ' <span style="color:var(--muted)">first in, so this is the root</span>' : '');
-
       $('#sh-hd').textContent = bal ? 'balanced insertion order' : 'already-sorted insertion order';
-      $('#sh-h').textContent = done ? 'height ' + height : 'height ' + height + ', still inserting';
-      $('#sh-note').innerHTML = !done
-        ? 'Inserting <b>' + just + '</b>: the search runs from the root, going left when the value is ' +
-          'smaller and right when it is larger, and the value lands wherever that search runs out. ' +
-          '<b>Nothing already placed ever moves</b>, which is why the first value inserted stays the root ' +
-          'for good.'
-        : bal
-          ? 'The middle value went in first, so each half split evenly. Seven nodes fit in a height of 2, and every search costs at most 3 comparisons. Note that <b>23 was inserted first and is the root</b>, which is the quickest check on any insertion-order question.'
-          : 'Each value was larger than the last, so each one attached to the <b>right</b> of the previous. The tree is a straight line: height 6, and searching it costs the same as scanning a list. <b>Every advantage of the tree is gone</b>, and nothing about the rules was broken.';
+      $('#sh-h').textContent = bal ? 'height 2' : 'height 6';
+      $('#sh-note').innerHTML = bal
+        ? 'The middle value went in first, so each half split evenly. Seven nodes fit in a height of 2, and every search costs at most 3 comparisons. Note that <b>23 was inserted first and is the root</b>, which is the quickest check on any insertion-order question.'
+        : 'Each value was larger than the last, so each one attached to the <b>right</b> of the previous. The tree is a straight line: height 6, and searching it costs the same as scanning a list. <b>Every advantage of the tree is gone</b>, and nothing about the rules was broken.';
       const m = $('#f-shape-msg');
-      m.className = 'msg ' + (done ? (bal ? 'good' : 'bad') : '');
-      m.textContent = !done
-        ? 'Each value lands as a leaf, at the point where the search for it fails.'
-        : bal
-          ? 'Same seven values, same rules. Only the order they arrived in differs.'
-          : 'This is why real indexes are self-balancing: sorted input is common, and this is what it would otherwise do.';
-      $('#sh-step').disabled = done;
+      m.className = 'msg ' + (bal ? 'good' : 'bad');
+      m.textContent = bal
+        ? 'Same seven values, same rules. Only the order they arrived in differs.'
+        : 'This is why real indexes are self-balancing: sorted input is common, and this is what it would otherwise do.';
     }
-
-    const tk = ticker($('#f-shape'), () => {
-      n++;
-      if (n >= ORD[key].length) { n = ORD[key].length; tk.pause(); }
-      draw(); label();
-    }, 850);
-    function label() { $('#sh-play').textContent = tk.playing ? 'Pause' : 'Play'; }
-    $('#sh-play').onclick = () => {
-      if (!tk.playing && n >= ORD[key].length) { n = 1; draw(); }
-      tk.toggle(); label();
-    };
-    $('#sh-step').onclick = () => { if (n < ORD[key].length) n++; draw(); };
-    $('#sh-reset').onclick = () => { tk.pause(); n = 1; draw(); label(); };
-    setPills($('#f-shape'), 'sh', k => { key = k; n = 1; tk.pause(); draw(); label(); });
-    draw(); label();
+    setPills($('#f-shape'), 'sh', draw);
+    draw('bal');
   })();
 
   /* ---- Fig 8.6 disk anatomy ---- */
@@ -916,147 +794,49 @@ function initWeek8() {
       hd: 'One <b>read-write head</b> floats over each surface, all mounted on a single <b>arm</b> that swings in and out. Moving it is mechanical and slow, and it is the single largest component of access time.',
       sp: 'The <b>spindle</b> holds all the platters and spins them together at a constant rate, commonly 7200 rpm. Because it never stops or reverses, a sector that has just passed can only be reached by <b>waiting a full revolution</b>, and that wait is the rotational latency.',
     };
-    /* geometry shared between the static drawing and the animation */
-    const CX = 400, CY = 78, RT = [56, 42, 28];   /* three tracks, outer to inner */
-    const ARM_X = [232, 220, 208];                /* head rest position per track */
-    let part = null, track = 1, rot = 0, armAt = ARM_X[1], seeking = false;
-
-    function draw() {
-      const on = id => part === id;
+    function draw(k) {
+      const on = id => k === id;
       const col = id => on(id) ? 'var(--indigo)' : '#c9c9c4';
       let s = DG.txt(DG.PAD, 16, 'side view', { cls: 'm mu' });
       [0, 1, 2].forEach(i => {
         const y = 38 + i * 34;
         s += `<ellipse cx="126" cy="${y}" rx="96" ry="9" fill="${on('pl') ? 'var(--indigo-tint)' : '#fff'}" ` +
           `stroke="${col('pl')}"/>`;
-        s += `<line class="hdln" x1="${armAt - 26}" y1="${y - 5}" x2="${armAt}" y2="${y - 5}" ` +
-          `stroke="${col('hd')}" stroke-width="${on('hd') ? 1.8 : 1}"/>`;
-        s += `<line class="hdln" x1="${armAt - 26}" y1="${y + 5}" x2="${armAt}" y2="${y + 5}" ` +
-          `stroke="${col('hd')}" stroke-width="${on('hd') ? 1.8 : 1}"/>`;
+        s += DG.line(206, y - 5, 232, y - 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
+        s += DG.line(206, y + 5, 232, y + 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
       });
       s += DG.line(126, 24, 126, 120, { stroke: col('sp'), sw: on('sp') ? 2.2 : 1.2 });
       s += DG.txt(126, 138, 'spindle', { anchor: 'middle', cls: 'm', fill: on('sp') ? 'var(--indigo)' : 'var(--muted)' });
-      s += `<line class="armln" x1="${armAt}" y1="24" x2="${armAt}" y2="120" ` +
-        `stroke="${col('hd')}" stroke-width="${on('hd') ? 2.2 : 1.2}"/>`;
-      s += `<text class="m armlb" x="${armAt}" y="138" text-anchor="middle" ` +
-        `fill="${on('hd') ? 'var(--indigo)' : 'var(--muted)'}">arm</text>`;
+      s += DG.line(236, 24, 236, 120, { stroke: col('hd'), sw: on('hd') ? 2.2 : 1.2 });
+      s += DG.txt(236, 138, 'arm', { anchor: 'middle', cls: 'm', fill: on('hd') ? 'var(--indigo)' : 'var(--muted)' });
       if (on('cy')) {
         s += `<rect x="182" y="26" width="18" height="96" fill="var(--indigo-tint)" stroke="var(--indigo)" stroke-dasharray="3 2"/>`;
         s += DG.txt(191, 138, 'cylinder', { anchor: 'middle', cls: 'm', fill: 'var(--indigo)' });
       }
       s += DG.txt(300, 16, 'one surface, from above', { cls: 'm mu' });
-
-      /* the tracks: the selected one is the one the head is over */
-      RT.forEach((r, i) => {
-        const sel = i === track;
-        s += `<circle class="trk" cx="${CX}" cy="${CY}" r="${r}" fill="none" ` +
-          `stroke="${sel ? (on('tr') ? 'var(--indigo)' : '#8f8f89') : '#e5e5e3'}" ` +
-          `stroke-width="${sel && on('tr') ? 1.8 : 1}"/>`;
+      const cx = 400, cy = 78;
+      [56, 42, 28].forEach((r, i) => {
+        s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${i === 1 ? col('tr') : '#e5e5e3'}" ` +
+          `stroke-width="${i === 1 && on('tr') ? 1.8 : 1}"/>`;
       });
-
-      /* everything inside this group turns with the platter */
-      s += `<g id="dk-rot" class="nt">`;
       for (let a = 0; a < 8; a++) {
         const th = (a * Math.PI) / 4;
-        s += DG.line(CX + 28 * Math.cos(th), CY + 28 * Math.sin(th),
-          CX + 56 * Math.cos(th), CY + 56 * Math.sin(th), { stroke: '#e5e5e3' });
+        s += DG.line(cx + 28 * Math.cos(th), cy + 28 * Math.sin(th),
+          cx + 56 * Math.cos(th), cy + 56 * Math.sin(th), { stroke: '#e5e5e3' });
       }
-      /* the sector we are waiting for, drawn as an arc on the selected track */
-      const r = RT[track];
-      s += `<path id="dk-sec" d="M ${CX + r} ${CY} A ${r} ${r} 0 0 1 ` +
-        `${(CX + r * Math.cos(Math.PI / 4)).toFixed(1)} ${(CY + r * Math.sin(Math.PI / 4)).toFixed(1)}" ` +
-        `fill="none" stroke="${on('se') ? 'var(--indigo)' : 'var(--terra)'}" stroke-width="9" opacity="0.55"/>`;
-      s += `</g>`;
-
-      /* the head: fixed in space at 3 o'clock, the sector comes to it */
-      s += DG.line(CX + RT[0] + 14, CY, CX + r + 4, CY, { stroke: 'var(--muted)' });
-      s += `<circle id="dk-head" cx="${CX + r}" cy="${CY}" r="3.4" fill="var(--indigo)"/>`;
-      s += DG.txt(CX + RT[0] + 18, CY + 4, 'head', { cls: 'm mu' });
-      s += DG.txt(CX, 152, on('se') ? 'the sector we want, highlighted' : 'tracks and sectors',
+      if (on('se')) {
+        s += `<path d="M ${cx + 35} ${cy} A 35 35 0 0 1 ` +
+          `${(cx + 35 * Math.cos(Math.PI / 4)).toFixed(1)} ${(cy + 35 * Math.sin(Math.PI / 4)).toFixed(1)}" ` +
+          `fill="none" stroke="var(--indigo)" stroke-width="9" opacity="0.5"/>`;
+      }
+      s += DG.txt(cx, 152, on('se') ? 'one sector highlighted' : 'tracks and sectors',
         { anchor: 'middle', cls: 'm mu' });
       s += DG.txt(DG.PAD, 184, 'the arm swings; the platters spin; both take real time', { cls: 'm mu' });
       $('#dk-svg').innerHTML = s;
-      $('#dk-note').innerHTML = T[part] ||
-        'Pick a part of the disk. The two views show the same drive from the side and from above.';
-      spin();
+      $('#dk-note').innerHTML = T[k] || 'Pick a part of the disk. The two views show the same drive from the side and from above.';
     }
-
-    /* apply the current rotation without rebuilding the drawing */
-    function spin() {
-      const g = $('#dk-rot');
-      if (g) g.setAttribute('transform', `rotate(${rot.toFixed(2)} ${CX} ${CY})`);
-    }
-
-    function readout() {
-      const rpm = +$('#dk-rpm').value;
-      const rev = 60000 / rpm;                       /* ms for one revolution */
-      /* The wanted sector is drawn from platter angle 0 to SEC, inside the
-         rotating group, so on screen it spans [rot, rot + SEC]. The head sits
-         at screen angle 0, which is the same place as 360. The sector is
-         therefore under the head once rot + SEC has reached 360. */
-      const SEC = 45;
-      const phase = ((rot % 360) + 360) % 360;
-      const under = phase >= 360 - SEC;
-      const remain = under ? 0 : (360 - SEC - phase) / 360 * rev;
-      $('#dk-rpm-v').textContent = rpm;
-      $('#dk-state').innerHTML = seeking
-        ? '<b style="color:var(--terra)">seeking</b>, moving the arm to another track'
-        : under ? '<b style="color:var(--green)">the sector is under the head, transferring</b>'
-          : 'waiting for the platter to bring the sector round';
-      $('#dk-wait').textContent = seeking ? 'seek in progress'
-        : under ? 'rotational wait 0.00 ms'
-          : 'rotational wait ' + remain.toFixed(2) + ' ms  (one turn = ' + rev.toFixed(2) + ' ms)';
-      const h = $('#dk-head');
-      if (h) h.setAttribute('fill', under ? 'var(--green)' : 'var(--indigo)');
-      const sec = $('#dk-sec');
-      if (sec && part !== 'se') sec.setAttribute('stroke', under ? 'var(--green)' : 'var(--terra)');
-    }
-
-    /* one continuous loop drives both the rotation and the seek */
-    let seekTo = armAt, spinning = true;
-    const loop = raf($('#f-disk'), dt => {
-      if (!spinning) { readout(); return; }
-      const rpm = +$('#dk-rpm').value;
-      /* slowed to about 1 turn per 2.2 s at 7200 rpm so the eye can follow it */
-      rot = (rot + dt * 360 * (rpm / 7200) / 2.2) % 360;
-      spin();
-      if (seeking) {
-        armAt = lerp(armAt, seekTo, Math.min(1, dt * 6));
-        if (Math.abs(armAt - seekTo) < 0.4) { armAt = seekTo; seeking = false; }
-        $$('#dk-svg .hdln').forEach(l => {
-          l.setAttribute('x1', (armAt - 26).toFixed(1));
-          l.setAttribute('x2', armAt.toFixed(1));
-        });
-        const a = $('#dk-svg .armln'), lb = $('#dk-svg .armlb');
-        if (a) { a.setAttribute('x1', armAt.toFixed(1)); a.setAttribute('x2', armAt.toFixed(1)); }
-        if (lb) lb.setAttribute('x', armAt.toFixed(1));
-        if (!seeking) draw();
-      }
-      readout();
-    });
-
-    /* Pause leaves the drawing exactly where it is, so a still frame can be
-       read off: the sector sits at a known angle from the head. */
-    function playLabel() {
-      $('#dk-play').textContent = ANIM.reduced ? 'Step the platter'
-        : spinning ? 'Pause' : 'Play';
-    }
-    $('#dk-play').onclick = () => {
-      if (ANIM.reduced) { rot = (rot + 22.5) % 360; spin(); readout(); return; }
-      spinning = !spinning;
-      playLabel();
-    };
-    $('#dk-seek').onclick = () => {
-      track = (track + 1) % RT.length;
-      seekTo = ARM_X[track];
-      seeking = true;
-      draw();
-    };
-    $('#dk-rpm').oninput = readout;
-    setPills($('#f-disk'), 'dk', k => { part = k; draw(); });
-    draw();
-    readout();
-    playLabel();
+    setPills($('#f-disk'), 'dk', draw);
+    draw(null);
   })();
 
   /* ---- Fig 8.7 capacity ---- */
@@ -1144,15 +924,8 @@ function initWeek8() {
 
   /* ---- Fig 8.9 buffer replacement ---- */
   (function () {
-    let REQ = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 4];
+    const REQ = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5, 4];
     let pol = 'lru', frames = 3, upto = 1;
-    /* A fresh sequence lets the reader test the claim that neither policy
-       always wins, rather than take it on trust. Repeats are deliberate:
-       without them there would be no hits to count. */
-    function reseed() {
-      const pool = [1, 2, 3, 4, 5, 6, 7, 9];
-      REQ = Array.from({ length: 12 }, () => pool[Math.floor(Math.random() * pool.length)]);
-    }
     function run(n, policy) {
       const buf = [], used = new Map(), log = [];
       let hits = 0;
@@ -1219,28 +992,12 @@ function initWeek8() {
             (pol === 'lru' ? 'MRU' : 'LRU') + ' gets ' + other +
             '. Switch policies and compare; the winner depends entirely on the request sequence.';
     }
-    const tk = ticker($('#f-buf'), () => {
-      upto++;
-      if (upto >= REQ.length) { upto = REQ.length; tk.pause(); }
-      draw(); label();
-    }, 700);
-    function label() {
-      $('#bf-play').textContent = tk.playing ? 'Pause'
-        : upto >= REQ.length ? 'Play again' : 'Play';
-      $('#bf-step').disabled = upto >= REQ.length;
-    }
-    $('#bf-play').onclick = () => {
-      if (!tk.playing && upto >= REQ.length) upto = 1;
-      tk.toggle(); label(); draw();
-    };
-    setPills($('#f-buf'), 'bf', v => { pol = v; draw(); label(); });
-    $('#bf-f').oninput = () => { frames = +$('#bf-f').value; draw(); label(); };
-    $('#bf-step').onclick = () => { tk.pause(); if (upto < REQ.length) upto++; draw(); label(); };
-    $('#bf-all').onclick = () => { tk.pause(); upto = REQ.length; draw(); label(); };
-    $('#bf-reset').onclick = () => { tk.pause(); upto = 1; draw(); label(); };
-    $('#bf-seed').onclick = () => { tk.pause(); reseed(); upto = REQ.length; draw(); label(); };
+    setPills($('#f-buf'), 'bf', v => { pol = v; draw(); });
+    $('#bf-f').oninput = () => { frames = +$('#bf-f').value; draw(); };
+    $('#bf-step').onclick = () => { if (upto < REQ.length) upto++; draw(); };
+    $('#bf-all').onclick = () => { upto = REQ.length; draw(); };
+    $('#bf-reset').onclick = () => { upto = 1; draw(); };
     draw();
-    label();
   })();
 }
 </script>

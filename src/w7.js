@@ -732,18 +732,13 @@ function initWeek7() {
       ['back up the chain', 'the response is assembled', 'and returned',
         'Rows go back to the application server, which turns them into HTML, which the web server sends back over HTTP, which the browser renders. <b>Server-side caching</b> can short-circuit this: cached query results, cached generated HTML and pooled connections all live at the server.'],
     ];
-    const B = [['browser', 8, 92], ['web server', 116, 100], ['application server', 232, 126],
-      ['database server', 374, 132]];
-    const L = B[0][1] + 6, R = B[3][1] + B[3][2] - 6;
     let k = 0;
-    /* Three requests in flight at once, at different phases. The point being
-       made in the text is that one web server serves many clients
-       simultaneously, which a single travelling dot would contradict. */
-    const REQ = [{ p: 0.05 }, { p: 0.42 }, { p: 0.78 }];
-
     function draw() {
+      const B = [['browser', 8, 92], ['web server', 116, 100], ['application server', 232, 126],
+        ['database server', 374, 132]];
       let s = '';
       B.forEach(([name, x, w], i) => {
+        const on = i === k || (k === 4);
         const isBrowser = i === 0;
         s += DG.box(x, 40, w, 36, name, null, {
           fill: i === k ? 'var(--indigo-tint)' : '#fff',
@@ -755,12 +750,7 @@ function initWeek7() {
       s += DG.txt(DG.PAD, 24, P[k][1], { cls: 'm', fill: 'var(--indigo)' });
       s += DG.txt(8, 96, 'client', { cls: 'm mu' });
       s += DG.txt(116, 96, 'the three components of the web architecture', { cls: 'm mu' });
-      /* the lane the requests travel along, above the boxes */
-      s += DG.line(L, 32, R, 32, { stroke: '#eeeeec' });
-      s += REQ.map((r, i) =>
-        `<circle class="wbq" data-i="${i}" cx="${L}" cy="32" r="3.6" fill="var(--indigo)"/>`).join('');
       $('#wb-svg').innerHTML = s;
-      place();
       $('#wb-hd').textContent = 'step ' + (k + 1) + ' of 5';
       $('#wb-n').textContent = P[k][2];
       $('#wb-note').innerHTML = P[k][3];
@@ -768,26 +758,8 @@ function initWeek7() {
       $('#wb-back').disabled = k <= 0;
       $('#f-web-msg').textContent = k === 0
         ? 'The browser is the client. It is not one of the three components, and neither is the GUI it provides.'
-        : 'Several requests are in flight at once, which is the whole point of one server accepting many clients.';
+        : 'three servers, and the browser is not one of them';
     }
-
-    /* p in [0,1): first half travels right as a request, second half travels
-       back left as a response, so each dot makes a round trip. */
-    function place() {
-      $$('#wb-svg .wbq').forEach(c => {
-        const r = REQ[+c.dataset.i];
-        const out = r.p < 0.5;
-        const t = out ? r.p * 2 : (1 - r.p) * 2;
-        c.setAttribute('cx', lerp(L, R, t).toFixed(1));
-        c.setAttribute('fill', out ? 'var(--indigo)' : 'var(--green)');
-      });
-    }
-
-    raf($('#f-web'), dt => {
-      REQ.forEach((r, i) => { r.p = (r.p + dt * (0.16 + i * 0.02)) % 1; });
-      place();
-    });
-
     $('#wb-step').onclick = () => { if (k < P.length - 1) k++; draw(); };
     $('#wb-back').onclick = () => { if (k > 0) k--; draw(); };
     $('#wb-reset').onclick = () => { k = 0; draw(); };
