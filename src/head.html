@@ -1,0 +1,344 @@
+<title>DBMS Bible</title>
+<style>
+@font-face{font-family:et-book;src:url(__FONT_ROMAN__)format("woff");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:et-book;src:url(__FONT_ITALIC__)format("woff");font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:et-book;src:url(__FONT_BOLD__)format("woff");font-weight:700;font-style:normal;font-display:swap}
+
+:root{
+  --background:#fafaf8; --foreground:#111; --muted:#6b7280; --border:#e5e5e3; --card:#f4f4f2;
+  --indigo:#3f5fd6; --terra:#d9734f; --green:#3d9970; --purple:#6b5cd6;
+  --indigo-tint:#dde3f8; --terra-tint:#f6e0d6; --green-tint:#d8efe4; --purple-tint:#e4e0f8;
+  --serif:et-book,Palatino,'Palatino Linotype',Georgia,serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{background:var(--background);color:var(--foreground);font-family:var(--serif);
+     font-size:14px;line-height:1.625;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:var(--serif);cursor:pointer;color:inherit}
+::selection{background:var(--indigo-tint)}
+:focus-visible{outline:2px solid var(--indigo);outline-offset:2px;border-radius:2px}
+.wrap{max-width:672px;margin:0 auto;padding:0 24px;width:100%}
+
+/* ---------------- chrome ---------------- */
+.topbar{border-bottom:1px solid var(--border)}
+.topbar .wrap{display:flex;justify-content:space-between;align-items:baseline;
+  font-size:12px;color:var(--muted);padding-top:14px;padding-bottom:14px}
+.topbar a{display:inline-flex;align-items:center;gap:5px;transition:color .15s}
+.topbar a:hover{color:var(--foreground)}
+.topbar .navr{display:flex;gap:18px}
+.topbar .dis{opacity:.4;display:inline-flex;align-items:center;gap:5px}
+.ico{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* ---------------- TOC ---------------- */
+.toc-head{padding:48px 0 4px}
+.toc-title{font-size:30px;font-weight:700;letter-spacing:-.75px;line-height:1.2}
+.toc-sub{font-size:16px;color:var(--muted);line-height:1.625;margin-top:12px}
+.toc-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  margin-top:44px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.toc-row{display:flex;align-items:baseline;gap:16px;padding:14px 0;
+  border-bottom:1px solid var(--border)}
+.toc-row .num{flex:0 0 76px;font-size:12px;font-family:var(--mono);color:var(--muted)}
+.toc-row .nm{flex:1}
+.toc-row .nm b{display:block;font-size:14px;font-weight:700}
+.toc-row .nm span{display:block;font-size:13px;color:var(--muted);margin-top:3px;line-height:1.5}
+.toc-row .arw{color:var(--border);transition:color .15s,transform .15s;margin-top:2px}
+.toc-row:hover .arw{color:var(--foreground);transform:translateX(3px)}
+.toc-row:hover .nm b{text-decoration:underline;text-underline-offset:2px}
+
+/* ---------------- chapter ---------------- */
+.chead{padding:48px 0 0}
+.crumb{font-size:12px;color:var(--muted)}
+h1{font-size:30px;font-weight:700;letter-spacing:-.75px;line-height:1.2;margin-top:8px}
+.subtitle{font-size:16px;color:var(--muted);line-height:1.625;margin-top:12px}
+article{padding-bottom:8px}
+section{margin-top:44px}
+h2{font-size:16px;font-weight:700;letter-spacing:-.2px;margin-bottom:14px}
+h3{font-size:14px;font-weight:700;margin:26px 0 8px}
+p{margin-bottom:28px}
+p:last-child{margin-bottom:0}
+b,strong{font-weight:700}
+i,em{font-style:italic}
+.lead{color:var(--muted)}
+
+/* definition list */
+dl{margin:0 0 28px}
+dt{font-size:14px;font-weight:700;margin-top:22px}
+dd{font-size:14px;color:var(--muted);line-height:1.625;margin-top:2px}
+dl.tight dt:first-child{margin-top:0}
+
+ul,ol{margin:0 0 28px 20px}
+li{margin-bottom:9px}
+li::marker{color:var(--muted)}
+li:last-child{margin-bottom:0}
+
+/* code */
+code{font-family:var(--mono);font-size:12.4px;background:var(--card);
+  border:1px solid var(--border);border-radius:3px;padding:.5px 4px}
+pre{background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:14px 16px;margin:0 0 28px;overflow-x:auto;font-family:var(--mono);
+  font-size:12.5px;line-height:1.75}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+pre .kw{color:var(--indigo);font-weight:600}
+pre .cm{color:var(--muted)}
+pre .st{color:var(--green)}
+pre .hl{background:var(--indigo-tint);border-radius:3px;padding:1px 3px;margin:0 -3px}
+.fig pre{background:#fff}
+
+/* equations */
+.eq{margin:0 0 28px;padding:4px 0;text-align:center;font-size:16px;overflow-x:auto}
+.eq .v{font-style:italic}
+.eq .op{padding:0 5px;color:var(--foreground)}
+.eq sub{font-size:.72em;vertical-align:-.28em;font-style:normal}
+.eq sup{font-size:.72em;vertical-align:.5em;font-style:normal}
+.frac{display:inline-block;vertical-align:middle;text-align:center;margin:0 4px}
+.frac .n{display:block;padding:0 6px 2px}
+.frac .d{display:block;border-top:1px solid var(--foreground);padding:2px 6px 0}
+.eqn{display:block;text-align:center;color:var(--muted);font-size:12px;margin-top:6px}
+
+/* ---------------- figures ---------------- */
+figure{margin:0 0 28px}
+.fig{width:100%;border-radius:8px;border:1px solid var(--border);
+  background:var(--card);padding:16px}
+figcaption{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5}
+.panel{background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px;
+  overflow-x:auto}
+.phead{display:flex;justify-content:space-between;gap:12px;font-size:11px;
+  color:var(--muted);font-family:var(--mono);margin-bottom:8px}
+.ctl{margin-top:12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;font-size:12px}
+.ctl .lab{color:var(--muted);font-family:var(--mono);font-size:11px}
+.ctl .grp{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;
+  white-space:nowrap}
+.ctl .val{color:var(--muted);min-width:30px;display:inline-block;font-variant-numeric:tabular-nums}
+input[type=range]{width:112px;accent-color:var(--foreground);height:16px;vertical-align:middle}
+.btn,.pill{font-size:11.5px;font-family:var(--mono);padding:4px 10px;border:1px solid var(--border);
+  border-radius:4px;background:transparent;transition:background .15s,color .15s,border-color .15s}
+.btn:hover,.pill:hover{background:#fff}
+.btn:disabled{opacity:.35;cursor:default;background:transparent}
+.pill.on{background:var(--foreground);border-color:var(--foreground);color:var(--background)}
+.msg{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.55;min-height:17px}
+.msg.good{color:var(--green)}
+.msg.bad{color:var(--terra)}
+svg.d{display:block;margin:0 auto;max-width:100%;height:auto}
+svg.d text{font-family:var(--serif);font-size:11px;fill:var(--foreground)}
+svg.d text.m{font-family:var(--mono);font-size:10px}
+svg.d text.mu{fill:var(--muted)}
+
+/* data tables */
+table.dt{border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;
+  font-family:var(--mono)}
+table.dt th{font-weight:400;color:var(--muted);text-align:left;font-size:11px;
+  padding:3px 14px 5px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+table.dt td{padding:3px 14px;border-bottom:1px solid #f0f0ee;white-space:nowrap;
+  transition:background .3s,opacity .3s}
+table.dt tr:last-child td{border-bottom:none}
+table.dt tr.hi td{background:var(--green-tint)}
+table.dt tr.lo td{background:var(--terra-tint)}
+table.dt tr.cu td{background:var(--indigo-tint)}
+table.dt tr.out td{opacity:.34;text-decoration:line-through;
+  text-decoration-color:var(--terra)}
+table.dt td.nul{color:var(--muted);font-style:italic;font-family:var(--serif)}
+.tname{font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px}
+.cols{display:flex;gap:24px;flex-wrap:wrap}
+
+/* prose table */
+.tw{overflow-x:auto;margin:0 0 28px;border:1px solid var(--border);border-radius:8px}
+table.pt{border-collapse:collapse;width:100%;font-size:13px}
+table.pt th{font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  font-weight:400;text-align:left;padding:9px 12px;background:var(--card);
+  border-bottom:1px solid var(--border);white-space:nowrap}
+table.pt td{padding:9px 12px;border-bottom:1px solid #f0f0ee;vertical-align:top}
+table.pt tr:last-child td{border-bottom:none}
+table.pt code{font-size:11.5px}
+
+/* check your understanding */
+.cyu{border:1px solid var(--border);background:var(--card);border-radius:8px;
+  padding:16px;margin:0 0 28px}
+.cyu .h{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:8px}
+.cyu p{margin:0;font-size:14px}
+.cyu details{margin-top:8px}
+.cyu summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:var(--muted);
+  transition:color .15s;display:inline-flex;align-items:center;gap:4px}
+.cyu summary:hover{color:var(--foreground)}
+.cyu summary::-webkit-details-marker{display:none}
+.cyu summary::after{content:"Show answer \25B8"}
+.cyu details[open] summary::after{content:"Hide answer \25BE"}
+.cyu details p{margin-top:8px;color:var(--muted)}
+
+/* chapter foot */
+.cfoot{margin-top:56px;border-top:1px solid var(--border);padding:22px 0 0;
+  display:flex;justify-content:space-between;gap:16px}
+.cfoot .side{flex:1}
+.cfoot .side.r{text-align:right}
+.cfoot .tag{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cfoot .nm{font-size:14px;margin-top:3px;display:inline-flex;align-items:center;gap:6px}
+.cfoot a:hover .nm{text-decoration:underline;text-underline-offset:2px}
+footer{border-top:1px solid var(--border);margin-top:40px}
+footer .wrap{padding:26px 24px 40px;font-size:12px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:16px}
+footer a:hover{color:var(--foreground)}
+
+/* ---------------- concept ladder ---------------- */
+.cpt{border:1px solid var(--border);border-radius:8px;background:#fff;margin:0 0 28px;overflow:hidden}
+.cpt .cn{padding:11px 16px;background:var(--card);border-bottom:1px solid var(--border);
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.cpt .cn b{font-size:14px}
+.cpt .cn i{font-size:11.5px;color:var(--muted);font-style:normal;font-family:var(--mono)}
+.cpt .rows{display:grid;grid-template-columns:112px 1fr}
+.cpt .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  padding:13px 4px 13px 16px;border-top:1px solid #f1f1ef;line-height:1.5}
+.cpt .t{font-size:14px;line-height:1.625;padding:12px 16px 13px 8px;border-top:1px solid #f1f1ef}
+.cpt .k:nth-of-type(1),.cpt .t:nth-of-type(1){border-top:none}
+.cpt .t code{font-size:12.2px}
+
+/* ---------------- worked example ---------------- */
+.wex{border-left:2px solid var(--border);padding:2px 0 2px 16px;margin:0 0 28px}
+.wex .h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.wex p:last-child{margin-bottom:0}
+.wex ol,.wex ul{margin-bottom:0}
+
+/* ---------------- inline mini table ---------------- */
+.mini{border-collapse:collapse;font-family:var(--mono);font-size:12px;margin:0 0 6px}
+.mini th{font-weight:400;color:var(--muted);text-align:left;font-size:10.5px;
+  padding:2px 12px 4px 0;border-bottom:1px solid var(--border);white-space:nowrap}
+.mini td{padding:2px 12px 2px 0;white-space:nowrap;border-bottom:1px solid #f4f4f2}
+.mini tr:last-child td{border-bottom:none}
+.mini td.hl{background:var(--green-tint)}
+.mini td.bad{background:var(--terra-tint)}
+
+@media (max-width:560px){
+  .toc-row .num{flex-basis:58px}
+  .cols{gap:14px}
+  .cpt .rows{grid-template-columns:1fr}
+  .cpt .k{padding:12px 16px 0;border-top:1px solid #f1f1ef}
+  .cpt .t{padding:4px 16px 12px;border-top:none}
+  .cpt .k:nth-of-type(1){border-top:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="topbar"><div class="wrap" id="topbar"></div></div>
+<main id="app"></main>
+<footer><div class="wrap"><span>DBMS Bible</span><span>Notes from the IIT Madras BS lecture series</span></div></footer>
+
+<script>
+'use strict';
+const $ = (s, e) => (e || document).querySelector(s);
+const $$ = (s, e) => [...(e || document).querySelectorAll(s)];
+const ARW_R = '<svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>';
+const ARW_L = '<svg class="ico" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+
+/* ---- tiny builders used by every chapter ---- */
+function fig(id, inner, caption, controls, msg) {
+  return `<figure><div class="fig" id="${id}">${inner}` +
+    (controls ? `<div class="ctl">${controls}</div>` : '') +
+    (msg !== undefined ? `<div class="msg" id="${id}-msg">${msg}</div>` : '') +
+    `</div><figcaption>${caption}</figcaption></figure>`;
+}
+function cyu(q, a) {
+  return `<div class="cyu"><div class="h">Check your understanding</div><p>${q}</p>` +
+    `<details><summary></summary><p>${a}</p></details></div>`;
+}
+function pills(name, opts, active) {
+  return opts.map((o, i) =>
+    `<button class="pill${i === active ? ' on' : ''}" data-${name}="${o[0]}">${o[1]}</button>`).join('');
+}
+function slider(id, min, max, step, val, label) {
+  return `<span class="grp">${label}<input type="range" id="${id}" min="${min}" max="${max}" ` +
+    `step="${step}" value="${val}"><span class="val" id="${id}-v">${val}</span></span>`;
+}
+function tbl(name, cols, rows, cls) {
+  const body = rows.map(r =>
+    `<tr class="${r.c || ''}">${r.v.map(v => `<td${v === null ? ' class="nul"' : ''}>` +
+      `${v === null ? 'NULL' : v}</td>`).join('')}</tr>`).join('');
+  return (name ? `<div class="tname">${name}</div>` : '') +
+    `<table class="dt ${cls || ''}"><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}` +
+    `</tr></thead><tbody>${body}</tbody></table>`;
+}
+function setPills(root, name, fn) {
+  $$(`[data-${name}]`, root).forEach(b => b.onclick = () => {
+    $$(`[data-${name}]`, root).forEach(x => x.classList.toggle('on', x === b));
+    fn(b.dataset[name]);
+  });
+}
+
+/* ---- the teaching ladder: every concept is introduced the same way ---- */
+const LADDER = ['What it is', 'Why we need it', 'Picture it like',
+  'In a database', 'How it works', 'Said formally'];
+function teach(name, tag, steps) {
+  const rows = steps.map((s, i) =>
+    `<div class="k">${LADDER[i]}</div><div class="t">${s}</div>`).join('');
+  return `<div class="cpt"><div class="cn"><b>${name}</b>` +
+    (tag ? `<i>${tag}</i>` : '') + `</div><div class="rows">${rows}</div></div>`;
+}
+function wex(title, body) {
+  return `<div class="wex"><div class="h">${title}</div>${body}</div>`;
+}
+function mini(cols, rows) {
+  return `<table class="mini"><thead><tr>` + cols.map(c => `<th>${c}</th>`).join('') +
+    `</tr></thead><tbody>` + rows.map(r => `<tr>` + r.map(c =>
+      Array.isArray(c) ? `<td class="${c[1]}">${c[0]}</td>` : `<td>${c}</td>`).join('') +
+    `</tr>`).join('') + `</tbody></table>`;
+}
+
+/* ---- diagram geometry: one grid so every figure lines up ---- */
+const DG = {
+  W: 520, PAD: 14, ROW: 46, BOXH: 38, GAP: 14,
+  esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); },
+  /* a labelled box; sub-label sits inside, never overlapping */
+  box(x, y, w, h, t, sub, o) {
+    o = o || {};
+    const fill = o.fill || '#fff', stroke = o.stroke || '#e5e5e3';
+    const sw = o.sw || 1, r = o.r === undefined ? 5 : o.r;
+    let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ` +
+      `stroke="${stroke}" stroke-width="${sw}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}/>`;
+    const cx = x + w / 2;
+    if (t && sub) {
+      s += `<text x="${cx}" y="${y + h / 2 - 2}" text-anchor="middle"${o.cls ? ` class="${o.cls}"` : ''}>${t}</text>`;
+      s += `<text x="${cx}" y="${y + h / 2 + 12}" text-anchor="middle" class="m mu">${sub}</text>`;
+    } else if (t) {
+      s += `<text x="${cx}" y="${y + h / 2 + 4}" text-anchor="middle"${o.cls ? ` class="${o.cls}"` : ''}>${t}</text>`;
+    }
+    return s;
+  },
+  /* a small monospace chip, used for values and keys */
+  chip(x, y, w, t, o) {
+    o = o || {};
+    return `<rect x="${x}" y="${y}" width="${w}" height="20" rx="4" fill="${o.fill || '#fff'}" ` +
+      `stroke="${o.stroke || '#e5e5e3'}"/>` +
+      `<text x="${x + w / 2}" y="${y + 14}" text-anchor="middle" class="m">${t}</text>`;
+  },
+  line(x1, y1, x2, y2, o) {
+    o = o || {};
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke || '#6b7280'}" ` +
+      `stroke-width="${o.sw || 1}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''} stroke-linecap="round"/>`;
+  },
+  /* arrow with a properly closed head, sized to the line */
+  arrow(x1, y1, x2, y2, o) {
+    o = o || {};
+    const st = o.stroke || '#6b7280', sw = o.sw || 1, h = o.head || 5;
+    const a = Math.atan2(y2 - y1, x2 - x1);
+    const bx = x2 - h * 0.9 * Math.cos(a), by = y2 - h * 0.9 * Math.sin(a);
+    return this.line(x1, y1, bx, by, { stroke: st, sw: sw, dash: o.dash }) +
+      `<path d="M ${x2} ${y2} L ${x2 - h * Math.cos(a - 0.42)} ${y2 - h * Math.sin(a - 0.42)} ` +
+      `L ${x2 - h * Math.cos(a + 0.42)} ${y2 - h * Math.sin(a + 0.42)} Z" fill="${st}"/>`;
+  },
+  txt(x, y, t, o) {
+    o = o || {};
+    return `<text x="${x}" y="${y}"${o.anchor ? ` text-anchor="${o.anchor}"` : ''}` +
+      `${o.cls ? ` class="${o.cls}"` : ''}${o.fill ? ` fill="${o.fill}"` : ''}` +
+      `${o.size ? ` font-size="${o.size}"` : ''}>${t}</text>`;
+  },
+  /* evenly space n items of width w across the canvas */
+  spread(n, w, from, to) {
+    from = from === undefined ? this.PAD : from;
+    to = to === undefined ? this.W - this.PAD : to;
+    if (n === 1) return [(from + to) / 2 - w / 2];
+    const gap = ((to - from) - n * w) / (n - 1);
+    return Array.from({ length: n }, (_, i) => from + i * (w + gap));
+  },
+};
+</script>
