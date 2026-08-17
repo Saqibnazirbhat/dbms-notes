@@ -146,7 +146,7 @@ ${teach('Tree', 'a branching structure with no loops', [
 </dl>
 ${fig('f-tree',
 `<div class="panel">
-  <svg class="d" viewBox="0 0 520 166" id="tv-svg"></svg>
+  <svg class="d" viewBox="0 0 520 192" id="tv-svg"></svg>
   <div class="msg" id="tv-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 8.3, The vocabulary of a tree, on one small example.',
@@ -627,8 +627,11 @@ function initWeek8() {
 
   /* ---- Fig 8.3 tree vocabulary ---- */
   (function () {
-    const N = [['A', 260, 26, 0], ['B', 150, 74, 1], ['C', 370, 74, 1], ['D', 96, 122, 2],
-      ['E', 204, 122, 2], ['F', 370, 122, 2], ['G', 150, 166, 3]];
+    /* Every child sits directly under, or clearly to one side of, its own
+       parent. G in particular belongs under E: placing it under B made it read
+       as B's child, which is the opposite of what the height example says. */
+    const N = [['A', 260, 26, 0], ['B', 150, 74, 1], ['C', 390, 74, 1], ['D', 90, 122, 2],
+      ['E', 210, 122, 2], ['F', 390, 122, 2], ['G', 210, 168, 3]];
     const E = [['A', 'B'], ['A', 'C'], ['B', 'D'], ['B', 'E'], ['C', 'F'], ['E', 'G']];
     const at = n => N.find(x => x[0] === n);
     const SEL = {

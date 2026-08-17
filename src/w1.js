@@ -264,7 +264,7 @@ valuable to live in main memory, so it lives on disk, and everything about the p
 follows from that.</p>
 ${fig('f-lv',
 `<div class="panel">
-  <svg class="d" viewBox="0 0 520 150" id="lv-svg"></svg>
+  <svg class="d" viewBox="0 0 520 156" id="lv-svg"></svg>
   <div class="msg" id="lv-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 1.4, The three levels, and who works at each.',
@@ -809,7 +809,9 @@ function initWeek1() {
     ];
     let k = 0;
     function draw() {
-      const w = 78, gap = 10;
+      /* six boxes plus five gaps have to fit inside the padded canvas:
+         14 + 6*73 + 5*10 = 502, against a width of 520 */
+      const w = 73, gap = 10;
       let x = DG.PAD, s = '';
       P.forEach((p, i) => {
         const on = i === k, done = i < k;

@@ -429,7 +429,7 @@ catching a parent catches all its children.</p>
 ${fig('f-try',
 `<div class="panel">
   <div class="phead"><span class="m" id="tr-hd"></span><span class="m" id="tr-cls"></span></div>
-  <svg class="d" viewBox="0 0 520 128" id="tr-svg"></svg>
+  <svg class="d" viewBox="0 0 520 134" id="tr-svg"></svg>
   <div class="msg" id="tr-note" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px"></div>
 </div>`,
 'Fig 7.7, The exception hierarchy, and which handler catches which failure.',
