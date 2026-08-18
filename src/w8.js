@@ -527,8 +527,8 @@ function initWeek8() {
       const maxY = Math.max(8, F[3][1](n));
       const x = i => 40 + (i / 64) * (DG.W - 66);
       const y = v => 130 - (Math.min(v, maxY) / maxY) * 106;
-      let s = DG.line(40, 130, DG.W - 22, 130, { stroke: '#e5e5e3' }) +
-        DG.line(40, 20, 40, 130, { stroke: '#e5e5e3' });
+      let s = DG.line(40, 130, DG.W - 22, 130, { stroke: 'var(--border)' }) +
+        DG.line(40, 20, 40, 130, { stroke: 'var(--border)' });
       F.forEach(f => {
         let d = '';
         for (let i = 1; i <= 64; i++) d += (i === 1 ? 'M' : 'L') + x(i).toFixed(1) + ' ' + y(f[1](i)).toFixed(1) + ' ';
@@ -658,8 +658,8 @@ function initWeek8() {
       });
       N.forEach(([n, x, y, d]) => {
         const on = sel.includes(n);
-        s += `<circle cx="${x}" cy="${y}" r="13" fill="${on ? 'var(--indigo-tint)' : '#fff'}" ` +
-          `stroke="${on ? 'var(--indigo)' : '#e5e5e3'}"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="13" fill="${on ? 'var(--indigo-tint)' : 'var(--card)'}" ` +
+          `stroke="${on ? 'var(--indigo)' : 'var(--border)'}"/>`;
         s += DG.txt(x, y + 4, n, { anchor: 'middle', cls: 'm' });
         if (k === 'd') s += DG.txt(x + 18, y + 4, 'depth ' + d, { cls: 'm mu' });
       });
@@ -715,10 +715,10 @@ function initWeek8() {
       }));
       N.forEach(([v, x, y]) => {
         const isCur = v === cur, seen = visited.includes(v), dead = gone.has(v);
-        s += `<circle cx="${x}" cy="${y}" r="14" fill="${isCur ? 'var(--indigo-tint)' : '#fff'}" ` +
-          `stroke="${isCur ? 'var(--indigo)' : seen ? 'var(--indigo)' : dead ? '#f0f0ee' : '#e5e5e3'}" ` +
+        s += `<circle cx="${x}" cy="${y}" r="14" fill="${isCur ? 'var(--indigo-tint)' : 'var(--card)'}" ` +
+          `stroke="${isCur ? 'var(--indigo)' : seen ? 'var(--indigo)' : dead ? '#f0f0ee' : 'var(--border)'}" ` +
           `${dead ? 'opacity="0.35"' : ''}/>`;
-        s += DG.txt(x, y + 4, String(v), { anchor: 'middle', cls: 'm', fill: dead ? '#c9c9c4' : '#111' });
+        s += DG.txt(x, y + 4, String(v), { anchor: 'middle', cls: 'm', fill: dead ? '#c9c9c4' : 'var(--foreground)' });
       });
       const done = k >= p.length - 1;
       const found = p[p.length - 1] === target;
@@ -765,7 +765,7 @@ function initWeek8() {
         s += DG.line(p[1], p[2] + 12, c[1], c[2] - 12, { stroke: '#c9c9c4' });
       });
       N.forEach(([v, x, y]) => {
-        s += `<circle cx="${x}" cy="${y}" r="13" fill="#fff" stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}"/>`;
+        s += `<circle cx="${x}" cy="${y}" r="13" fill="var(--card)" stroke="${bal ? 'var(--indigo)' : 'var(--terra)'}"/>`;
         s += DG.txt(x, y + 4, String(v), { anchor: 'middle', cls: 'm' });
       });
       s += DG.txt(DG.PAD, 172, bal
@@ -803,7 +803,7 @@ function initWeek8() {
       let s = DG.txt(DG.PAD, 16, 'side view', { cls: 'm mu' });
       [0, 1, 2].forEach(i => {
         const y = 38 + i * 34;
-        s += `<ellipse cx="126" cy="${y}" rx="96" ry="9" fill="${on('pl') ? 'var(--indigo-tint)' : '#fff'}" ` +
+        s += `<ellipse cx="126" cy="${y}" rx="96" ry="9" fill="${on('pl') ? 'var(--indigo-tint)' : 'var(--card)'}" ` +
           `stroke="${col('pl')}"/>`;
         s += DG.line(206, y - 5, 232, y - 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
         s += DG.line(206, y + 5, 232, y + 5, { stroke: col('hd'), sw: on('hd') ? 1.8 : 1 });
@@ -819,13 +819,13 @@ function initWeek8() {
       s += DG.txt(300, 16, 'one surface, from above', { cls: 'm mu' });
       const cx = 400, cy = 78;
       [56, 42, 28].forEach((r, i) => {
-        s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${i === 1 ? col('tr') : '#e5e5e3'}" ` +
+        s += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${i === 1 ? col('tr') : 'var(--border)'}" ` +
           `stroke-width="${i === 1 && on('tr') ? 1.8 : 1}"/>`;
       });
       for (let a = 0; a < 8; a++) {
         const th = (a * Math.PI) / 4;
         s += DG.line(cx + 28 * Math.cos(th), cy + 28 * Math.sin(th),
-          cx + 56 * Math.cos(th), cy + 56 * Math.sin(th), { stroke: '#e5e5e3' });
+          cx + 56 * Math.cos(th), cy + 56 * Math.sin(th), { stroke: 'var(--border)' });
       }
       if (on('se')) {
         s += `<path d="M ${cx + 35} ${cy} A 35 35 0 0 1 ` +
@@ -893,7 +893,7 @@ function initWeek8() {
         s += `<rect x="${x.toFixed(1)}" y="30" width="${w.toFixed(1)}" height="26" fill="${c}" opacity="0.72"/>`;
         x += w;
       });
-      s += `<rect x="${DG.PAD}" y="30" width="${W}" height="26" fill="none" stroke="#e5e5e3"/>`;
+      s += `<rect x="${DG.PAD}" y="30" width="${W}" height="26" fill="none" stroke="var(--border)"/>`;
       P.forEach(([n, v, c], i) => {
         s += `<rect x="${DG.PAD + i * 172}" y="70" width="9" height="3" fill="${c}"/>`;
         s += DG.txt(DG.PAD + 14 + i * 172, 75, n, { cls: 'm mu' });

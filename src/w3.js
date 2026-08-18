@@ -1069,8 +1069,8 @@ function initWeek3() {
       ROW1.concat(ROW2).forEach(([id, x, w], i) => {
         const on = id === k;
         s += DG.box(x, i < ROW1.length ? 30 : 96, w, 30, id, null, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 4, cls: 'm',
         });
       });
       s += DG.txt(DG.PAD, 20, 'the things that exist', { cls: 'm mu' });
@@ -1388,7 +1388,7 @@ function initWeek3() {
       const v = +$('#q-v').value;
       $('#q-v-v').textContent = v;
       const x = s => 46 + (s - 25) * ((DG.W - 92) / 80);
-      let g = DG.line(30, 74, DG.W - 26, 74, { stroke: '#e5e5e3' });
+      let g = DG.line(30, 74, DG.W - 26, 74, { stroke: 'var(--border)' });
       SET.forEach(s => {
         const beaten = v > s;
         g += `<circle cx="${x(s)}" cy="74" r="6" fill="${beaten ? 'var(--green-tint)' : 'var(--terra-tint)'}" ` +
@@ -1580,8 +1580,8 @@ function initWeek3() {
       BOX.forEach(([id, x, w]) => {
         const on = id === k;
         s += DG.box(x, 34, w, 32, id, null, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', cls: 'm',
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', cls: 'm',
         });
       });
       LINK.forEach(([x, lab]) => {

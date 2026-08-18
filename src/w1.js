@@ -705,8 +705,8 @@ function initWeek1() {
       L.forEach(([id, name, alt, y, sub]) => {
         const on = id === k;
         s += DG.box(DG.PAD, y, 300, 32, name, sub, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4,
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 4,
         });
         s += DG.txt(330, y + 16, alt, { cls: 'm mu' });
         if (on) s += DG.txt(330, y + 30, WHO[id], { cls: 'm', fill: 'var(--indigo)', size: 10.5 });
@@ -773,8 +773,8 @@ function initWeek1() {
         const isMay = mayAffect.includes(id);
         const isProtected = i < idx;
         s += DG.box(DG.PAD, y, 250, 28, name, null, {
-          fill: isChanged ? 'var(--terra-tint)' : isProtected ? 'var(--green-tint)' : '#fff',
-          stroke: isChanged ? 'var(--terra)' : isProtected ? 'var(--green)' : '#e5e5e3', r: 4,
+          fill: isChanged ? 'var(--terra-tint)' : isProtected ? 'var(--green-tint)' : 'var(--card)',
+          stroke: isChanged ? 'var(--terra)' : isProtected ? 'var(--green)' : 'var(--border)', r: 4,
         });
         const lab = isChanged ? 'changed here'
           : isProtected ? 'must NOT be affected'
@@ -816,8 +816,8 @@ function initWeek1() {
       P.forEach((p, i) => {
         const on = i === k, done = i < k;
         s += DG.box(x, 40, w, 34, String(i + 1), null, {
-          fill: on ? 'var(--indigo-tint)' : done ? 'var(--card)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4, cls: 'm',
+          fill: on ? 'var(--indigo-tint)' : done ? 'var(--card)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 4, cls: 'm',
         });
         if (i < P.length - 1) s += DG.arrow(x + w + 1, 57, x + w + gap - 1, 57, { stroke: '#c9c9c4' });
         x += w + gap;

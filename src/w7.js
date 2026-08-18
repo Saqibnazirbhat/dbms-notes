@@ -622,8 +622,8 @@ function initWeek7() {
       L.forEach(([id, name, sub, y, par]) => {
         const on = id === k;
         s += DG.box(DG.PAD, y, 340, 36, name, sub, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4,
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 4,
         });
         s += DG.txt(374, y + 22, par, { cls: 'm mu' });
       });
@@ -656,8 +656,8 @@ function initWeek7() {
       B.forEach(([id, name, x, sub]) => {
         const on = id === cur;
         s += DG.box(x, 30, 140, 42, name, sub, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 4,
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 4,
         });
       });
       [[154, 190, 'event'], [330, 366, 'query']].forEach(([x1, x2, lab]) => {
@@ -701,7 +701,7 @@ function initWeek7() {
       const total = boxes.reduce((a, b) => a + b[1], 0) + gap * (boxes.length - 1);
       let x = (DG.W - total) / 2, s = '';
       boxes.forEach((b, i) => {
-        s += DG.box(x, 34, b[1], 40, b[0], null, { fill: '#fff', stroke: 'var(--indigo)', r: 4 });
+        s += DG.box(x, 34, b[1], 40, b[0], null, { fill: 'var(--card)', stroke: 'var(--indigo)', r: 4 });
         if (i < boxes.length - 1) s += DG.arrow(x + b[1] + 2, 54, x + b[1] + gap - 2, 54, { stroke: '#c9c9c4' });
         x += b[1] + gap;
       });
@@ -741,8 +741,8 @@ function initWeek7() {
         const on = i === k || (k === 4);
         const isBrowser = i === 0;
         s += DG.box(x, 40, w, 36, name, null, {
-          fill: i === k ? 'var(--indigo-tint)' : '#fff',
-          stroke: i === k ? 'var(--indigo)' : isBrowser ? '#c9c9c4' : '#e5e5e3',
+          fill: i === k ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: i === k ? 'var(--indigo)' : isBrowser ? '#c9c9c4' : 'var(--border)',
           r: 4, cls: 'm',
         });
         if (i < B.length - 1) s += DG.arrow(x + w + 1, 58, B[i + 1][1] - 1, 58, { stroke: '#c9c9c4' });
@@ -872,8 +872,8 @@ function initWeek7() {
       NODES.forEach(([name, x, y, w]) => {
         const on = path.includes(name);
         s += DG.box(x, y, w, 20, name, null, {
-          fill: on ? 'var(--indigo-tint)' : '#fff',
-          stroke: on ? 'var(--indigo)' : '#e5e5e3', r: 3, cls: 'm',
+          fill: on ? 'var(--indigo-tint)' : 'var(--card)',
+          stroke: on ? 'var(--indigo)' : 'var(--border)', r: 3, cls: 'm',
         });
       });
       s += DG.txt(DG.PAD, 126, k === 'ok' ? 'no exception raised'

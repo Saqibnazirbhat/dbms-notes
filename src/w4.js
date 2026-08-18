@@ -815,12 +815,12 @@ function initWeek4() {
       const arrowL = card === '11' || card === '1n', arrowR = card === '11';
       const dbl = part === 'total';
       let s = DG.box(24, 26, 108, 36, 'employee', null, { r: 4 }) +
-        `<path d="M228 44 l30 -19 l30 19 l-30 19 Z" fill="var(--card)" stroke="#e5e5e3"/>` +
+        `<path d="M228 44 l30 -19 l30 19 l-30 19 Z" fill="var(--card)" stroke="var(--border)"/>` +
         DG.txt(258, 47, 'works_on', { anchor: 'middle', cls: 'm' }) +
         DG.box(388, 26, 108, 36, 'project', null, { r: 4 });
-      s += DG.line(132, 44, 228, 44, { stroke: '#111' });
-      if (dbl) s += DG.line(132, 49, 228, 49, { stroke: '#111' });
-      s += DG.line(288, 44, 388, 44, { stroke: '#111' });
+      s += DG.line(132, 44, 228, 44, { stroke: 'var(--foreground)' });
+      if (dbl) s += DG.line(132, 49, 228, 49, { stroke: 'var(--foreground)' });
+      s += DG.line(288, 44, 388, 44, { stroke: 'var(--foreground)' });
       if (arrowL) s += `<path d="M148 38 L136 44 L148 50" fill="none" stroke="var(--indigo)" stroke-width="1.7" stroke-linecap="round"/>`;
       if (arrowR) s += `<path d="M372 38 L384 44 L372 50" fill="none" stroke="var(--indigo)" stroke-width="1.7" stroke-linecap="round"/>`;
       s += DG.txt(78, 78, dbl ? 'total participation' : 'partial participation',

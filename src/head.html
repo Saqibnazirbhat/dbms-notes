@@ -103,7 +103,9 @@ figure{margin:0 0 28px}
 .fig{width:100%;border-radius:8px;border:1px solid var(--border);
   background:var(--card);padding:16px}
 figcaption{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5}
-.panel{background:#fff;border:1px solid var(--border);border-radius:6px;padding:12px;
+/* the diagram sits directly on the card ground, with no inner box of its own:
+   a panel drawn inside a panel reads as clutter and flattens the drawing */
+.panel{background:transparent;border:0;border-radius:0;padding:0;
   overflow-x:auto}
 .phead{display:flex;justify-content:space-between;gap:12px;font-size:11px;
   color:var(--muted);font-family:var(--mono);margin-bottom:8px}
@@ -115,7 +117,7 @@ figcaption{margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5}
 input[type=range]{width:112px;accent-color:var(--foreground);height:16px;vertical-align:middle}
 .btn,.pill{font-size:11.5px;font-family:var(--mono);padding:4px 10px;border:1px solid var(--border);
   border-radius:4px;background:transparent;transition:background .15s,color .15s,border-color .15s}
-.btn:hover,.pill:hover{background:#fff}
+.btn:hover,.pill:hover{background:var(--background)}
 .btn:disabled{opacity:.35;cursor:default;background:transparent}
 .pill.on{background:var(--foreground);border-color:var(--foreground);color:var(--background)}
 .msg{margin-top:8px;font-size:11.5px;color:var(--muted);line-height:1.55;min-height:17px}
@@ -291,8 +293,10 @@ const DG = {
   /* a labelled box; sub-label sits inside, never overlapping */
   box(x, y, w, h, t, sub, o) {
     o = o || {};
-    const fill = o.fill || '#fff', stroke = o.stroke || '#e5e5e3';
-    const sw = o.sw || 1, r = o.r === undefined ? 5 : o.r;
+    /* a box is defined by its outline, not by a contrasting fill: the fill
+       matches the ground so the drawing stays quiet and the border carries it */
+    const fill = o.fill || 'var(--card)', stroke = o.stroke || 'var(--border)';
+    const sw = o.sw || 0.8, r = o.r === undefined ? 4 : o.r;
     let s = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" fill="${fill}" ` +
       `stroke="${stroke}" stroke-width="${sw}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''}/>`;
     const cx = x + w / 2;
@@ -307,19 +311,19 @@ const DG = {
   /* a small monospace chip, used for values and keys */
   chip(x, y, w, t, o) {
     o = o || {};
-    return `<rect x="${x}" y="${y}" width="${w}" height="20" rx="4" fill="${o.fill || '#fff'}" ` +
-      `stroke="${o.stroke || '#e5e5e3'}"/>` +
+    return `<rect x="${x}" y="${y}" width="${w}" height="20" rx="2" fill="${o.fill || 'var(--card)'}" ` +
+      `stroke="${o.stroke || 'var(--border)'}" stroke-width="0.8"/>` +
       `<text x="${x + w / 2}" y="${y + 14}" text-anchor="middle" class="m">${t}</text>`;
   },
   line(x1, y1, x2, y2, o) {
     o = o || {};
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke || '#6b7280'}" ` +
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${o.stroke || 'var(--muted)'}" ` +
       `stroke-width="${o.sw || 1}"${o.dash ? ` stroke-dasharray="${o.dash}"` : ''} stroke-linecap="round"/>`;
   },
   /* arrow with a properly closed head, sized to the line */
   arrow(x1, y1, x2, y2, o) {
     o = o || {};
-    const st = o.stroke || '#6b7280', sw = o.sw || 1, h = o.head || 5;
+    const st = o.stroke || 'var(--muted)', sw = o.sw || 1, h = o.head || 5;
     const a = Math.atan2(y2 - y1, x2 - x1);
     const bx = x2 - h * 0.9 * Math.cos(a), by = y2 - h * 0.9 * Math.sin(a);
     return this.line(x1, y1, bx, by, { stroke: st, sw: sw, dash: o.dash }) +
